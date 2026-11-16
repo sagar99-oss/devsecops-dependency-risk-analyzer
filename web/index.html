@@ -3,167 +3,889 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>DevSecOps Dependency Risk Analyzer Dashboard</title>
+    <title>Software Dependency Security Analyzer</title>
     <link rel="stylesheet" href="/static/dashboard.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
-<body>
-    <div class="dashboard-container">
-        <!-- Navbar Header -->
-        <header class="navbar">
-            <div class="logo-group">
-                <span class="logo-icon">🛡️</span>
-                <span class="logo-title">DevSecOps Risk Analyzer</span>
-            </div>
-            <div id="exportGroup" style="display: none; gap: 0.75rem;">
-                <a id="btnExportHtml" class="btn" style="background:#0284c7" target="_blank">📥 HTML Report</a>
-                <a id="btnExportJson" class="btn" style="background:#4f46e5" target="_blank">📄 JSON</a>
-                <a id="btnExportSarif" class="btn" style="background:#9333ea" target="_blank">🐙 SARIF</a>
-                <a id="btnExportCycloneDx" class="btn" style="background:#059669" target="_blank">📦 CycloneDX SBOM</a>
-            </div>
-
-        </header>
-
-        <!-- KPI Metric Cards -->
-        <div class="stats-grid">
-            <div class="stat-card">
-                <div class="stat-label">Composite Risk Score</div>
-                <div class="stat-value" id="riskScoreValue">-- / 100</div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-label">Quality Gate</div>
-                <div style="margin-top:0.5rem">
-                    <span id="qualityGateBadge" class="badge" style="font-size:1.1rem">READY</span>
-                </div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-label">Dependencies Scanned</div>
-                <div class="stat-value" id="totalDepsCount">0</div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-label">Vulnerable Packages</div>
-                <div class="stat-value" id="vulnDepsCount" style="color:var(--high-orange)">0</div>
-            </div>
-        </div>
-
-        <!-- Academic Research Innovation Metrics Panel -->
-        <div class="stats-grid" style="grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));">
-            <div class="stat-card" style="border-left: 4px solid var(--accent-blue);">
-                <div class="stat-label">🧬 AST False Positives Eliminated</div>
-                <div class="stat-value" id="resFalsePositives" style="color:var(--accent-blue)">0</div>
-            </div>
-            <div class="stat-card" style="border-left: 4px solid var(--accent-indigo);">
-                <div class="stat-label">🕸️ DAG Graph Avg Blast Radius</div>
-                <div class="stat-value" id="resBlastRadius" style="color:var(--accent-indigo)">0.0</div>
-            </div>
-            <div class="stat-card" style="border-left: 4px solid var(--medium-yellow);">
-                <div class="stat-label">🔮 Predicted ML Zero-Day Threats</div>
-                <div class="stat-value" id="resZeroDays" style="color:var(--medium-yellow)">0</div>
-            </div>
-            <div class="stat-card" style="border-left: 4px solid var(--low-green);">
-                <div class="stat-label">🤖 Breaking Changes Prevented</div>
-                <div class="stat-value" id="resBreakingChanges" style="color:var(--low-green)">0</div>
-            </div>
-        </div>
-
-
-        <!-- Scan Input Section -->
-        <div class="scan-section">
-            <div class="dropzone-card">
-                <div class="chart-title">📁 Upload Dependency Manifest</div>
-                <div class="dropzone" id="dropzone">
-                    <div style="font-size: 2.5rem; margin-bottom: 0.5rem;">📄</div>
-                    <p style="font-weight:600; margin-bottom: 0.25rem;">Drag & drop dependency file here</p>
-                    <p style="font-size:0.85rem; color:var(--text-secondary)">Supports <code>requirements.txt</code>, <code>package.json</code>, <code>pom.xml</code>, <code>pyproject.toml</code></p>
-                    <input type="file" id="fileInput" style="display:none">
+<body class="dark-theme">
+    <div class="app-layout">
+        <!-- Sidebar Navigation -->
+        <aside class="sidebar">
+            <div class="sidebar-brand">
+                <div class="brand-shield">🛡️</div>
+                <div class="brand-text">
+                    <span class="brand-name">DependencySec</span>
+                    <span class="brand-sub">Security Analyzer</span>
                 </div>
             </div>
 
-            <div class="github-card">
-                <div class="chart-title">🐙 Scan Remote GitHub Repository</div>
-                <div class="form-group">
-                    <label style="font-size:0.85rem; color:var(--text-secondary)">GitHub Repository URL</label>
-                    <input type="text" id="githubUrl" placeholder="https://github.com/owner/repository">
+            <div class="sidebar-section-label">MODULES</div>
+            <nav class="nav-menu">
+                <button class="nav-item active" data-view="dashboard">
+                    <span class="nav-icon">📊</span> Dashboard
+                </button>
+                <button class="nav-item" data-view="scanner">
+                    <span class="nav-icon">🔍</span> Dependency Scanner
+                </button>
+                <button class="nav-item" data-view="inventory">
+                    <span class="nav-icon">📦</span> Dependency Inventory
+                </button>
+                <button class="nav-item" data-view="vulnerabilities">
+                    <span class="nav-icon">🚨</span> Vulnerability Management
+                    <span class="nav-badge" id="navVulnBadge">0</span>
+                </button>
+                <button class="nav-item" data-view="licenses">
+                    <span class="nav-icon">⚖️</span> License Compliance
+                </button>
+                <button class="nav-item" data-view="graph">
+                    <span class="nav-icon">🕸️</span> Dependency Graph
+                </button>
+                <button class="nav-item" data-view="remediation">
+                    <span class="nav-icon">🛠️</span> Remediation Center
+                </button>
+                <button class="nav-item" data-view="history">
+                    <span class="nav-icon">📜</span> Scan History
+                </button>
+                <button class="nav-item" data-view="reports">
+                    <span class="nav-icon">📑</span> Security Reports
+                </button>
+                <button class="nav-item" data-view="settings">
+                    <span class="nav-icon">⚙️</span> Settings & Info
+                </button>
+            </nav>
+
+            <div class="sidebar-footer">
+                <div class="engine-status">
+                    <span class="status-dot online"></span>
+                    <span>OSV DB & Engine Online</span>
                 </div>
-                <div class="form-group">
-                    <label style="font-size:0.85rem; color:var(--text-secondary)">Branch</label>
-                    <input type="text" id="githubBranch" value="main" placeholder="main">
+                <div class="version-tag">v2.0.0 Enterprise</div>
+            </div>
+        </aside>
+
+        <!-- Main Content Area -->
+        <main class="main-content">
+            <!-- Top Header Bar -->
+            <header class="topbar">
+                <div class="topbar-left">
+                    <h1 class="page-title" id="pageTitle">Security Overview Dashboard</h1>
+                    <div class="scan-target-indicator" id="scanTargetIndicator">
+                        <span class="pulse-dot"></span> Target: <span id="currentTargetDisplay">No active scan</span>
+                    </div>
                 </div>
-                <div style="margin-top: 1.25rem;">
-                    <button id="btnGithubScan" class="btn" style="width: 100%;">🚀 Launch GitHub Scan</button>
+                <div class="topbar-right">
+                    <div id="quickExportGroup" class="quick-export-group" style="display: none;">
+                        <button class="btn btn-sm btn-outline" id="btnExportHtmlTop" title="Export HTML">📥 HTML</button>
+                        <button class="btn btn-sm btn-outline" id="btnExportJsonTop" title="Export JSON">📄 JSON</button>
+                        <button class="btn btn-sm btn-outline" id="btnExportSarifTop" title="Export SARIF">🐙 SARIF</button>
+                    </div>
+                    <button class="btn btn-primary" id="btnTriggerNewScan">🚀 New Scan</button>
+                </div>
+            </header>
+
+            <!-- Scrollable View Container -->
+            <div class="content-body">
+
+                <!-- VIEW 1: DASHBOARD -->
+                <section class="view-panel active" id="view-dashboard">
+                    <!-- 10 Core Security KPI Metrics Grid -->
+                    <div class="kpi-grid">
+                        <div class="kpi-card highlight-card">
+                            <div class="kpi-header">
+                                <span class="kpi-label">1. Overall Risk Score</span>
+                                <span class="kpi-icon">⚡</span>
+                            </div>
+                            <div class="kpi-value-row">
+                                <span class="kpi-value" id="kpiRiskScore">--</span>
+                                <span class="kpi-unit">/ 100</span>
+                            </div>
+                            <div class="kpi-sub" id="kpiRiskLevelBadge">
+                                <span class="badge badge-neutral">READY</span>
+                            </div>
+                        </div>
+
+                        <div class="kpi-card">
+                            <div class="kpi-header">
+                                <span class="kpi-label">2. Total Dependencies</span>
+                                <span class="kpi-icon">📦</span>
+                            </div>
+                            <div class="kpi-value-row">
+                                <span class="kpi-value" id="kpiTotalDeps">0</span>
+                            </div>
+                            <div class="kpi-sub text-muted">Direct & Transitive</div>
+                        </div>
+
+                        <div class="kpi-card">
+                            <div class="kpi-header">
+                                <span class="kpi-label">3. Vulnerable Packages</span>
+                                <span class="kpi-icon">⚠️</span>
+                            </div>
+                            <div class="kpi-value-row">
+                                <span class="kpi-value text-orange" id="kpiVulnDeps">0</span>
+                            </div>
+                            <div class="kpi-sub" id="kpiVulnRate">0% exposure rate</div>
+                        </div>
+
+                        <div class="kpi-card">
+                            <div class="kpi-header">
+                                <span class="kpi-label">4. Critical CVEs</span>
+                                <span class="kpi-icon">🔥</span>
+                            </div>
+                            <div class="kpi-value-row">
+                                <span class="kpi-value text-red" id="kpiCritVulns">0</span>
+                            </div>
+                            <div class="kpi-sub text-red">Immediate action required</div>
+                        </div>
+
+                        <div class="kpi-card">
+                            <div class="kpi-header">
+                                <span class="kpi-label">5. High Severity</span>
+                                <span class="kpi-icon">🛑</span>
+                            </div>
+                            <div class="kpi-value-row">
+                                <span class="kpi-value text-orange" id="kpiHighVulns">0</span>
+                            </div>
+                            <div class="kpi-sub text-muted">High risk CVEs</div>
+                        </div>
+
+                        <div class="kpi-card">
+                            <div class="kpi-header">
+                                <span class="kpi-label">6. Outdated Packages</span>
+                                <span class="kpi-icon">⏳</span>
+                            </div>
+                            <div class="kpi-value-row">
+                                <span class="kpi-value text-yellow" id="kpiOutdatedDeps">0</span>
+                            </div>
+                            <div class="kpi-sub text-muted">Newer versions available</div>
+                        </div>
+
+                        <div class="kpi-card">
+                            <div class="kpi-header">
+                                <span class="kpi-label">7. License Issues</span>
+                                <span class="kpi-icon">⚖️</span>
+                            </div>
+                            <div class="kpi-value-row">
+                                <span class="kpi-value" id="kpiLicenseIssues">0</span>
+                            </div>
+                            <div class="kpi-sub text-muted">Restrictive or Missing</div>
+                        </div>
+
+                        <div class="kpi-card">
+                            <div class="kpi-header">
+                                <span class="kpi-label">8. Transitive Deps</span>
+                                <span class="kpi-icon">🔗</span>
+                            </div>
+                            <div class="kpi-value-row">
+                                <span class="kpi-value text-cyan" id="kpiTransitiveDeps">0</span>
+                            </div>
+                            <div class="kpi-sub text-muted">Indirect sub-dependencies</div>
+                        </div>
+
+                        <div class="kpi-card">
+                            <div class="kpi-header">
+                                <span class="kpi-label">9. Security Issues Fixable</span>
+                                <span class="kpi-icon">🩹</span>
+                            </div>
+                            <div class="kpi-value-row">
+                                <span class="kpi-value text-green" id="kpiFixedIssues">0</span>
+                            </div>
+                            <div class="kpi-sub text-green">Fixed versions available</div>
+                        </div>
+
+                        <div class="kpi-card highlight-card-alt">
+                            <div class="kpi-header">
+                                <span class="kpi-label">10. Health Score</span>
+                                <span class="kpi-icon">💖</span>
+                            </div>
+                            <div class="kpi-value-row">
+                                <span class="kpi-value" id="kpiHealthScore">100</span>
+                                <span class="kpi-unit">/ 100</span>
+                            </div>
+                            <div class="kpi-sub" id="kpiQualityGateDisplay">
+                                <span class="badge badge-passed">GATE PASSED</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Charts Grid -->
+                    <div class="grid-2-col">
+                        <div class="panel-card">
+                            <div class="panel-header">
+                                <h3 class="panel-title">📊 Vulnerability Severity Distribution</h3>
+                                <span class="panel-tag">OSV & CVSS v3</span>
+                            </div>
+                            <div class="chart-wrapper">
+                                <canvas id="dashSeverityChart"></canvas>
+                            </div>
+                        </div>
+
+                        <div class="panel-card">
+                            <div class="panel-header">
+                                <h3 class="panel-title">📈 Security Risk Trend Across Scans</h3>
+                                <span class="panel-tag">Historical Trend</span>
+                            </div>
+                            <div class="chart-wrapper">
+                                <canvas id="dashTrendChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Academic Innovations Overview Row -->
+                    <div class="panel-card research-panel">
+                        <div class="panel-header">
+                            <h3 class="panel-title">🔬 Advanced Program Analysis & Supply Chain Metrics</h3>
+                            <span class="badge badge-purple">Research Engine</span>
+                        </div>
+                        <div class="research-grid">
+                            <div class="research-item">
+                                <div class="research-icon">🧬</div>
+                                <div class="research-info">
+                                    <div class="research-val" id="resFalsePositives">0</div>
+                                    <div class="research-name">AST False Positives Eliminated</div>
+                                    <div class="research-desc">Reachability verified via Call-Graph</div>
+                                </div>
+                            </div>
+                            <div class="research-item">
+                                <div class="research-icon">🕸️</div>
+                                <div class="research-info">
+                                    <div class="research-val" id="resBlastRadius">0.0</div>
+                                    <div class="research-name">DAG Graph Avg Blast Radius</div>
+                                    <div class="research-desc">Centrality & structural hierarchy</div>
+                                </div>
+                            </div>
+                            <div class="research-item">
+                                <div class="research-icon">🔮</div>
+                                <div class="research-info">
+                                    <div class="research-val" id="resZeroDays">0</div>
+                                    <div class="research-name">Predicted Zero-Day Threats</div>
+                                    <div class="research-desc">ML & maintainer health signals</div>
+                                </div>
+                            </div>
+                            <div class="research-item">
+                                <div class="research-icon">🤖</div>
+                                <div class="research-info">
+                                    <div class="research-val" id="resBreakingChanges">0</div>
+                                    <div class="research-name">Breaking Changes Prevented</div>
+                                    <div class="research-desc">AST differential API shift protection</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- VIEW 2: DEPENDENCY SCANNER -->
+                <section class="view-panel" id="view-scanner">
+                    <div class="scanner-container">
+                        <div class="scanner-hero">
+                            <h2>🚀 Launch Dependency Vulnerability Scan</h2>
+                            <p>Upload a dependency manifest or scan a remote public GitHub repository to analyze CVEs, license compliance, outdated versions, and supply chain graphs.</p>
+                        </div>
+
+                        <div class="grid-2-col">
+                            <!-- Option 1: File Upload -->
+                            <div class="panel-card scan-method-card">
+                                <div class="method-header">
+                                    <div class="method-icon">📁</div>
+                                    <div>
+                                        <h3>Option 1: Upload Dependency Manifest</h3>
+                                        <p class="text-muted">Drag & drop or browse your project manifest</p>
+                                    </div>
+                                </div>
+
+                                <div class="dropzone" id="dropzone">
+                                    <div class="dropzone-icon">📄</div>
+                                    <div class="dropzone-title">Drop your dependency file here</div>
+                                    <div class="dropzone-desc">or <span class="dropzone-browse">browse from computer</span></div>
+                                    <div class="dropzone-tags">
+                                        <span class="tag">requirements.txt</span>
+                                        <span class="tag">package.json</span>
+                                        <span class="tag">pom.xml</span>
+                                        <span class="tag">pyproject.toml</span>
+                                    </div>
+                                    <input type="file" id="fileInput" accept=".txt,.json,.xml,.toml,.req,.lock,.mod" style="display:none">
+                                </div>
+
+                                <div class="scan-options-row">
+                                    <label class="toggle-control">
+                                        <input type="checkbox" id="chkFailCriticalUpload" checked>
+                                        <span class="toggle-slider"></span>
+                                        <span class="toggle-label">Fail Quality Gate on Critical CVEs</span>
+                                    </label>
+                                    <div class="threshold-input-group">
+                                        <label>Risk Threshold:</label>
+                                        <input type="number" id="uploadRiskThreshold" min="1" max="100" value="70" class="input-sm">
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Option 2: Remote GitHub Repository -->
+                            <div class="panel-card scan-method-card">
+                                <div class="method-header">
+                                    <div class="method-icon">🐙</div>
+                                    <div>
+                                        <h3>Option 2: Scan Remote GitHub Repository</h3>
+                                        <p class="text-muted">Scan public repositories directly via GitHub Git Tree</p>
+                                    </div>
+                                </div>
+
+                                <form id="githubScanForm" class="github-form" onsubmit="return false;">
+                                    <div class="form-group">
+                                        <label for="githubUrl">GitHub Repository URL <span class="required">*</span></label>
+                                        <input type="url" id="githubUrl" class="form-input" placeholder="https://github.com/owner/repository" required>
+                                        <span class="form-hint">e.g., https://github.com/pallets/flask</span>
+                                    </div>
+
+                                    <div class="form-group">
+                                        <label for="githubBranch">Branch</label>
+                                        <input type="text" id="githubBranch" class="form-input" value="main" placeholder="main (or master)">
+                                    </div>
+
+                                    <div class="scan-options-row">
+                                        <label class="toggle-control">
+                                            <input type="checkbox" id="chkFailCriticalGithub" checked>
+                                            <span class="toggle-slider"></span>
+                                            <span class="toggle-label">Fail on Critical CVEs</span>
+                                        </label>
+                                        <div class="threshold-input-group">
+                                            <label>Threshold:</label>
+                                            <input type="number" id="githubRiskThreshold" min="1" max="100" value="70" class="input-sm">
+                                        </div>
+                                    </div>
+
+                                    <button type="button" id="btnLaunchGithubScan" class="btn btn-primary btn-block">
+                                        🔍 Launch GitHub Security Scan
+                                    </button>
+                                </form>
+                            </div>
+                        </div>
+
+                        <!-- Progress indicator card -->
+                        <div id="scanProgressCard" class="panel-card scan-progress-card" style="display: none;">
+                            <div class="progress-header">
+                                <div class="spinner"></div>
+                                <div>
+                                    <h4 id="progressStatusTitle">Scanning dependencies...</h4>
+                                    <p class="text-muted" id="progressStatusDesc">Querying OSV.dev and checking registry metadata</p>
+                                </div>
+                            </div>
+                            <div class="progress-bar-bg">
+                                <div class="progress-bar-fill" id="scanProgressBar"></div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- VIEW 3: DEPENDENCY INVENTORY -->
+                <section class="view-panel" id="view-inventory">
+                    <div class="panel-card">
+                        <div class="panel-header-with-actions">
+                            <div>
+                                <h2 class="panel-title">📦 Detected Dependency Inventory</h2>
+                                <p class="text-muted">Complete Software Bill of Materials (SBOM) for the scanned project</p>
+                            </div>
+                            <div class="table-actions">
+                                <input type="text" id="invSearchInput" class="form-input input-search" placeholder="Search package name, version, license...">
+                                <select id="invEcosystemFilter" class="form-select">
+                                    <option value="ALL">All Ecosystems</option>
+                                    <option value="PyPI">PyPI (Python)</option>
+                                    <option value="npm">npm (JavaScript)</option>
+                                    <option value="Maven">Maven (Java)</option>
+                                    <option value="Go">Go</option>
+                                    <option value="crates.io">crates.io (Rust)</option>
+                                </select>
+                                <select id="invStatusFilter" class="form-select">
+                                    <option value="ALL">All Statuses</option>
+                                    <option value="VULNERABLE">Vulnerable Only</option>
+                                    <option value="OUTDATED">Outdated Only</option>
+                                    <option value="DIRECT">Direct Only</option>
+                                    <option value="TRANSITIVE">Transitive Only</option>
+                                    <option value="LICENSE_RISK">License Risk Only</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="table-responsive">
+                            <table class="data-table" id="inventoryTable">
+                                <thead>
+                                    <tr>
+                                        <th onclick="sortInventoryTable('name')">Package Name ⬍</th>
+                                        <th onclick="sortInventoryTable('version')">Installed Version ⬍</th>
+                                        <th>Latest Version</th>
+                                        <th onclick="sortInventoryTable('ecosystem')">Ecosystem ⬍</th>
+                                        <th>Dependency Type</th>
+                                        <th>Security Status</th>
+                                        <th>License</th>
+                                        <th>Compliance Risk</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="inventoryTableBody">
+                                    <tr>
+                                        <td colspan="9" class="empty-state-cell">
+                                            <div class="empty-state">
+                                                <div class="empty-icon">📦</div>
+                                                <p>No dependency scan loaded. Upload a manifest or run a scan to populate the inventory.</p>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- VIEW 4: VULNERABILITY MANAGEMENT -->
+                <section class="view-panel" id="view-vulnerabilities">
+                    <div class="panel-card">
+                        <div class="panel-header-with-actions">
+                            <div>
+                                <h2 class="panel-title">🚨 Vulnerability Management & CVE Tracker</h2>
+                                <p class="text-muted">Detailed vulnerability records retrieved from OSV, NVD, and CVSS database</p>
+                            </div>
+                            <div class="table-actions">
+                                <div class="severity-filter-group">
+                                    <button class="btn btn-filter active" data-sev="ALL">All</button>
+                                    <button class="btn btn-filter" data-sev="CRITICAL">Critical</button>
+                                    <button class="btn btn-filter" data-sev="HIGH">High</button>
+                                    <button class="btn btn-filter" data-sev="MEDIUM">Medium</button>
+                                    <button class="btn btn-filter" data-sev="LOW">Low</button>
+                                </div>
+                                <input type="text" id="vulnSearchInput" class="form-input input-search" placeholder="Search CVE ID, package, keyword...">
+                            </div>
+                        </div>
+
+                        <div class="table-responsive">
+                            <table class="data-table" id="vulnerabilitiesTable">
+                                <thead>
+                                    <tr>
+                                        <th>Severity</th>
+                                        <th>Vulnerability ID</th>
+                                        <th>Affected Package</th>
+                                        <th>Installed Version</th>
+                                        <th>CVSS Score</th>
+                                        <th>EPSS Score</th>
+                                        <th>Fixed Version</th>
+                                        <th>Reachability (AST)</th>
+                                        <th>Summary & Details</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="vulnTableBody">
+                                    <tr>
+                                        <td colspan="9" class="empty-state-cell">
+                                            <div class="empty-state">
+                                                <div class="empty-icon">🛡️</div>
+                                                <p>No vulnerabilities detected or no scan performed yet.</p>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- VIEW 5: LICENSE COMPLIANCE -->
+                <section class="view-panel" id="view-licenses">
+                    <div class="grid-2-col">
+                        <div class="panel-card">
+                            <div class="panel-header">
+                                <h3 class="panel-title">⚖️ License Compliance Summary</h3>
+                                <span class="panel-tag">Legal Risk Evaluation</span>
+                            </div>
+                            <div class="license-metrics-grid">
+                                <div class="license-metric-box permissive">
+                                    <div class="lic-val" id="licPermissiveCount">0</div>
+                                    <div class="lic-label">Permissive (MIT, Apache, BSD)</div>
+                                    <div class="lic-status text-green">Safe for commercial use</div>
+                                </div>
+                                <div class="license-metric-box copyleft">
+                                    <div class="lic-val" id="licWeakCopyleftCount">0</div>
+                                    <div class="lic-label">Weak Copyleft (LGPL, MPL)</div>
+                                    <div class="lic-status text-yellow">Component-level compliance</div>
+                                </div>
+                                <div class="license-metric-box strong-copyleft">
+                                    <div class="lic-val" id="licStrongCopyleftCount">0</div>
+                                    <div class="lic-label">Strong Copyleft (GPL, AGPL)</div>
+                                    <div class="lic-status text-red">High Risk / Restrictive</div>
+                                </div>
+                                <div class="license-metric-box unknown">
+                                    <div class="lic-val" id="licUnknownCount">0</div>
+                                    <div class="lic-label">Unknown / Missing</div>
+                                    <div class="lic-status text-orange">Audit recommended</div>
+                                </div>
+                            </div>
+
+                            <div id="licenseAlertBox" class="alert-box alert-danger" style="display: none; margin-top: 1.5rem;">
+                                ⚠️ <strong>Restrictive License Warning:</strong> One or more dependencies use strong copyleft licenses (such as GPL/AGPL). This may require making proprietary application source code public under reciprocal license terms.
+                            </div>
+                        </div>
+
+                        <div class="panel-card">
+                            <div class="panel-header">
+                                <h3 class="panel-title">📊 License Distribution</h3>
+                            </div>
+                            <div class="chart-wrapper">
+                                <canvas id="licenseChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="panel-card" style="margin-top: 1.5rem;">
+                        <div class="panel-header">
+                            <h3 class="panel-title">📜 Dependency License Details</h3>
+                        </div>
+                        <div class="table-responsive">
+                            <table class="data-table">
+                                <thead>
+                                    <tr>
+                                        <th>Package</th>
+                                        <th>Version</th>
+                                        <th>Ecosystem</th>
+                                        <th>Detected License</th>
+                                        <th>Category</th>
+                                        <th>Commercial Use</th>
+                                        <th>Copyleft Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="licenseTableBody">
+                                    <tr><td colspan="7" class="empty-state-cell"><div class="empty-state"><p>No scan loaded.</p></div></td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- VIEW 6: DEPENDENCY GRAPH -->
+                <section class="view-panel" id="view-graph">
+                    <div class="panel-card graph-wrapper-card">
+                        <div class="panel-header-with-actions">
+                            <div>
+                                <h2 class="panel-title">🕸️ Interactive Dependency Supply Chain Graph</h2>
+                                <p class="text-muted">Visual DAG hierarchy: Direct dependencies, transitive sub-trees, and vulnerable nodes</p>
+                            </div>
+                            <div class="graph-controls">
+                                <button class="btn btn-sm btn-outline" id="btnGraphZoomIn">➕ Zoom In</button>
+                                <button class="btn btn-sm btn-outline" id="btnGraphZoomOut">➖ Zoom Out</button>
+                                <button class="btn btn-sm btn-outline" id="btnGraphReset">🔄 Reset</button>
+                                <button class="btn btn-sm btn-outline" id="btnGraphToggleVulnOnly">🔴 Highlight Vulnerable</button>
+                            </div>
+                        </div>
+
+                        <div class="graph-legend">
+                            <span class="legend-item"><span class="legend-dot dot-direct"></span> Direct Package</span>
+                            <span class="legend-item"><span class="legend-dot dot-transitive"></span> Transitive Package</span>
+                            <span class="legend-item"><span class="legend-dot dot-vuln"></span> Vulnerable Package</span>
+                            <span class="legend-item"><span class="legend-dot dot-safe"></span> Clean / Safe</span>
+                        </div>
+
+                        <div class="graph-canvas-container" id="graphContainer">
+                            <canvas id="dependencyGraphCanvas"></canvas>
+                            <div id="nodeTooltip" class="graph-node-tooltip" style="display: none;"></div>
+                        </div>
+
+                        <!-- Inspector side drawer for clicked node -->
+                        <div id="nodeInspectorPanel" class="node-inspector-panel" style="display: none;">
+                            <div class="inspector-header">
+                                <h4 id="inspectNodeTitle">Package Details</h4>
+                                <button class="close-btn" id="btnCloseInspector">✕</button>
+                            </div>
+                            <div class="inspector-body" id="inspectNodeBody"></div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- VIEW 7: REMEDIATION CENTER -->
+                <section class="view-panel" id="view-remediation">
+                    <div class="panel-card">
+                        <div class="panel-header">
+                            <div>
+                                <h2 class="panel-title">🛠️ Automated Remediation Center</h2>
+                                <p class="text-muted">Safe, non-breaking upgrade paths and CLI remediation commands for vulnerable dependencies</p>
+                            </div>
+                            <span class="badge badge-passed">Safe Guidance</span>
+                        </div>
+
+                        <div class="alert-box alert-info">
+                            🛡️ <strong>Safety Policy:</strong> The analyzer recommends minimal non-breaking upgrade paths. Files are <strong>never automatically modified without your approval</strong>. Verify breaking change risks before applying upgrades.
+                        </div>
+
+                        <div class="table-responsive">
+                            <table class="data-table">
+                                <thead>
+                                    <tr>
+                                        <th>Package</th>
+                                        <th>Current Version</th>
+                                        <th>Recommended Version</th>
+                                        <th>CVEs Resolved</th>
+                                        <th>Severity</th>
+                                        <th>SemVer Breaking Risk</th>
+                                        <th>Upgrade Command</th>
+                                        <th>Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="remediationTableBody">
+                                    <tr>
+                                        <td colspan="8" class="empty-state-cell">
+                                            <div class="empty-state">
+                                                <div class="empty-icon">✨</div>
+                                                <p>No vulnerable packages requiring remediation.</p>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- VIEW 8: SCAN HISTORY & COMPARISON -->
+                <section class="view-panel" id="view-history">
+                    <div class="panel-card">
+                        <div class="panel-header-with-actions">
+                            <div>
+                                <h2 class="panel-title">📜 Scan History & Version Comparison</h2>
+                                <p class="text-muted">Previous scan records stored in SQLite database. Select two scans to compare security posture deltas.</p>
+                            </div>
+                            <button class="btn btn-primary" id="btnLaunchCompareModal">⚖️ Compare Two Scans</button>
+                        </div>
+
+                        <div class="table-responsive">
+                            <table class="data-table">
+                                <thead>
+                                    <tr>
+                                        <th>Scan ID</th>
+                                        <th>Target / File</th>
+                                        <th>Risk Score</th>
+                                        <th>Health Score</th>
+                                        <th>Total Deps</th>
+                                        <th>Vulnerable</th>
+                                        <th>Quality Gate</th>
+                                        <th>Scan Timestamp</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="historyTableBody">
+                                    <tr><td colspan="9" class="empty-state-cell"><div class="empty-state"><p>Loading scan history...</p></div></td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- VIEW 9: SECURITY REPORTS -->
+                <section class="view-panel" id="view-reports">
+                    <div class="reports-hero panel-card">
+                        <h2>📑 Exportable Security Reports & Artifacts</h2>
+                        <p class="text-muted">Download comprehensive executive security audit reports in standard industry formats.</p>
+
+                        <div class="reports-grid">
+                            <div class="report-box">
+                                <div class="report-icon">📥</div>
+                                <h3>Executive HTML Report</h3>
+                                <p>Self-contained, interactive HTML report with charts, inventory, CVEs, and compliance summaries.</p>
+                                <a id="btnDownloadHtml" class="btn btn-primary btn-block" target="_blank">Download HTML Report</a>
+                            </div>
+
+                            <div class="report-box">
+                                <div class="report-icon">📄</div>
+                                <h3>JSON Security Data</h3>
+                                <p>Machine-readable JSON data containing all 10 security metrics, DAG edges, and AST findings.</p>
+                                <a id="btnDownloadJson" class="btn btn-secondary btn-block" target="_blank">Download JSON Report</a>
+                            </div>
+
+                            <div class="report-box">
+                                <div class="report-icon">🐙</div>
+                                <h3>GitHub Code Scanning SARIF</h3>
+                                <p>OASIS SARIF v2.1.0 formatted report for seamless CI/CD integration with GitHub Security tab.</p>
+                                <a id="btnDownloadSarif" class="btn btn-purple btn-block" target="_blank">Download SARIF Report</a>
+                            </div>
+
+                            <div class="report-box">
+                                <div class="report-icon">📦</div>
+                                <h3>CycloneDX v1.4 SBOM</h3>
+                                <p>Standard Software Bill of Materials (SBOM) with purls, licenses, and component hashes.</p>
+                                <a id="btnDownloadCycloneDx" class="btn btn-green btn-block" target="_blank">Download CycloneDX SBOM</a>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- VIEW 10: SETTINGS & INFO -->
+                <section class="view-panel" id="view-settings">
+                    <div class="grid-2-col">
+                        <div class="panel-card">
+                            <div class="panel-header">
+                                <h3 class="panel-title">⚙️ Scanner Configuration</h3>
+                            </div>
+                            <div class="settings-form">
+                                <div class="form-group">
+                                    <label>Default Risk Score Threshold (0-100)</label>
+                                    <input type="number" id="settingThreshold" class="form-input" value="70">
+                                    <span class="form-hint">Scans scoring higher than this will fail the CI/CD Quality Gate.</span>
+                                </div>
+                                <div class="form-group">
+                                    <label class="toggle-control">
+                                        <input type="checkbox" id="settingFailCritical" checked>
+                                        <span class="toggle-slider"></span>
+                                        <span class="toggle-label">Strict Quality Gate: Always fail on Critical CVEs</span>
+                                    </label>
+                                </div>
+                                <div class="form-group">
+                                    <label class="toggle-control">
+                                        <input type="checkbox" id="settingCheckLicenses" checked>
+                                        <span class="toggle-slider"></span>
+                                        <span class="toggle-label">Enforce License Compliance (Flag GPL/AGPL in commercial code)</span>
+                                    </label>
+                                </div>
+                                <button class="btn btn-primary" id="btnSaveSettings">Save Preferences</button>
+                            </div>
+                        </div>
+
+                        <div class="panel-card">
+                            <div class="panel-header">
+                                <h3 class="panel-title">ℹ️ System Status & Threat Feeds</h3>
+                            </div>
+                            <div class="system-info-list">
+                                <div class="info-row">
+                                    <span class="info-label">Application:</span>
+                                    <span class="info-val font-mono">Software Dependency Security Analyzer</span>
+                                </div>
+                                <div class="info-row">
+                                    <span class="info-label">Vulnerability Source:</span>
+                                    <span class="info-val text-green">Google OSV.dev REST API (Active)</span>
+                                </div>
+                                <div class="info-row">
+                                    <span class="info-label">EPSS Scoring API:</span>
+                                    <span class="info-val text-green">FIRST.org EPSS v1 (Active)</span>
+                                </div>
+                                <div class="info-row">
+                                    <span class="info-label">License & Metadata:</span>
+                                    <span class="info-val text-green">PyPI & npm Registry APIs + Built-in Catalog</span>
+                                </div>
+                                <div class="info-row">
+                                    <span class="info-label">Local Database:</span>
+                                    <span class="info-val font-mono">SQLite (devsecops.db)</span>
+                                </div>
+                                <div class="info-row">
+                                    <span class="info-label">Supported Manifests:</span>
+                                    <span class="info-val">requirements.txt, package.json, pom.xml, pyproject.toml</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+            </div>
+        </main>
+    </div>
+
+    <!-- MODAL: Vulnerability Detail Inspection -->
+    <div id="vulnDetailModal" class="modal-overlay" style="display: none;">
+        <div class="modal-box">
+            <div class="modal-header">
+                <div>
+                    <span class="badge" id="modalVulnSeverityBadge">CRITICAL</span>
+                    <h3 id="modalVulnTitle" style="margin-top:0.5rem">CVE-2023-XXXX</h3>
+                </div>
+                <button class="modal-close-btn" id="btnCloseVulnModal">✕</button>
+            </div>
+            <div class="modal-body">
+                <div class="modal-meta-grid">
+                    <div><strong>Package:</strong> <span id="modalVulnPkg">--</span></div>
+                    <div><strong>CVSS Score:</strong> <span id="modalVulnCvss">--</span></div>
+                    <div><strong>EPSS Score:</strong> <span id="modalVulnEpss">--</span></div>
+                    <div><strong>Fixed In:</strong> <span id="modalVulnFixed" class="text-green">--</span></div>
+                </div>
+                <div style="margin-top:1.25rem;">
+                    <strong>Summary & Impact:</strong>
+                    <p id="modalVulnSummary" class="text-muted" style="margin-top:0.35rem; line-height:1.6;"></p>
+                </div>
+                <div style="margin-top:1.25rem;">
+                    <strong>Remediation Guidance:</strong>
+                    <div id="modalVulnRemediation" class="callout-box" style="margin-top:0.5rem;"></div>
+                </div>
+                <div style="margin-top:1.25rem;">
+                    <strong>Official References & Advisories:</strong>
+                    <ul id="modalVulnRefs" style="margin-top:0.5rem; padding-left:1.25rem;"></ul>
                 </div>
             </div>
         </div>
+    </div>
 
-        <!-- Charts Grid -->
-        <div class="charts-grid">
-            <div class="chart-card">
-                <div class="chart-title">📊 Vulnerability Severity Breakdown</div>
-                <canvas id="severityChart" height="200"></canvas>
+    <!-- MODAL: Scan Comparison -->
+    <div id="compareModal" class="modal-overlay" style="display: none;">
+        <div class="modal-box modal-lg">
+            <div class="modal-header">
+                <div>
+                    <h3>⚖️ Compare Security Posture Between Two Scans</h3>
+                    <p class="text-muted">Detect newly introduced CVEs, resolved vulnerabilities, and score deltas.</p>
+                </div>
+                <button class="modal-close-btn" id="btnCloseCompareModal">✕</button>
             </div>
-            <div class="chart-card">
-                <div class="chart-title">📈 Security Risk Score Trend</div>
-                <canvas id="trendChart" height="200"></canvas>
-            </div>
-        </div>
+            <div class="modal-body">
+                <div class="compare-selectors-row">
+                    <div class="form-group" style="flex:1">
+                        <label>Baseline Scan (Scan A):</label>
+                        <select id="compareScanA" class="form-select"></select>
+                    </div>
+                    <div style="font-size:1.5rem; align-self:center; margin-top:1rem">➔</div>
+                    <div class="form-group" style="flex:1">
+                        <label>Comparison Scan (Scan B):</label>
+                        <select id="compareScanB" class="form-select"></select>
+                    </div>
+                    <div style="align-self:flex-end">
+                        <button class="btn btn-primary" id="btnExecuteCompare">Run Comparison</button>
+                    </div>
+                </div>
 
-        <!-- Vulnerabilities Data Table -->
-        <div class="table-card">
-            <div style="display:flex; justify-between; align-items:center; margin-bottom: 1rem;">
-                <div class="chart-title" style="margin:0">🚨 Target Findings & Vulnerability Details: <span id="targetName" style="color:var(--accent-blue)">None</span></div>
-            </div>
-            <table>
-                <thead>
-                    <tr>
-                        <th>Package</th>
-                        <th>Version</th>
-                        <th>Ecosystem</th>
-                        <th>Vulnerability ID</th>
-                        <th>Severity</th>
-                        <th>CVSS</th>
-                        <th>Fixed Version</th>
-                        <th>Summary</th>
-                    </tr>
-                </thead>
-                <tbody id="vulnTableBody">
-                    <tr>
-                        <td colspan="8" style="text-align:center; color:var(--text-secondary); padding:2rem">Upload a file or scan a repository to view security analysis.</td>
-                    </tr>
-                </tbody>
-            </table>
-        </div>
+                <div id="compareResultsArea" style="display: none; margin-top: 1.5rem;">
+                    <div class="compare-deltas-grid">
+                        <div class="kpi-card">
+                            <div class="kpi-label">Risk Score Delta</div>
+                            <div class="kpi-value" id="cmpRiskDelta">0.0</div>
+                            <div class="kpi-sub" id="cmpRiskDeltaText">--</div>
+                        </div>
+                        <div class="kpi-card">
+                            <div class="kpi-label">Health Score Delta</div>
+                            <div class="kpi-value" id="cmpHealthDelta">0.0</div>
+                            <div class="kpi-sub" id="cmpHealthDeltaText">--</div>
+                        </div>
+                        <div class="kpi-card">
+                            <div class="kpi-label">Newly Introduced CVEs</div>
+                            <div class="kpi-value text-red" id="cmpNewVulnsCount">0</div>
+                            <div class="kpi-sub text-muted">Regressions</div>
+                        </div>
+                        <div class="kpi-card">
+                            <div class="kpi-label">Resolved CVEs</div>
+                            <div class="kpi-value text-green" id="cmpResolvedVulnsCount">0</div>
+                            <div class="kpi-sub text-muted">Fixed issues</div>
+                        </div>
+                    </div>
 
-        <!-- History Scans Table -->
-        <div class="table-card">
-            <div class="chart-title">📜 Scan History Log</div>
-            <table>
-                <thead>
-                    <tr>
-                        <th>Scan ID</th>
-                        <th>Target Manifest / Repo</th>
-                        <th>Risk Score</th>
-                        <th>Risk Level</th>
-                        <th>Quality Gate</th>
-                        <th>Timestamp</th>
-                    </tr>
-                </thead>
-                <tbody id="historyTableBody">
-                    <tr>
-                        <td colspan="6" style="text-align:center; color:var(--text-secondary); padding:1rem">No past scan records.</td>
-                    </tr>
-                </tbody>
-            </table>
+                    <div style="margin-top: 1.5rem;">
+                        <h4 style="margin-bottom:0.75rem">🚨 Newly Introduced Vulnerabilities in Scan B:</h4>
+                        <div id="cmpNewVulnsList" class="compare-vuln-list"></div>
+                    </div>
+
+                    <div style="margin-top: 1.5rem;">
+                        <h4 style="margin-bottom:0.75rem">✨ Resolved Vulnerabilities (Fixed since Scan A):</h4>
+                        <div id="cmpResolvedVulnsList" class="compare-vuln-list"></div>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 
     <!-- Loading Overlay -->
-    <div id="loadingOverlay" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(9,13,22,0.85); backdrop-filter:blur(8px); z-index:999; justify-content:center; align-items:center; flex-direction:column; gap:1rem;">
+    <div id="loadingOverlay" class="loading-overlay" style="display:none;">
         <div class="spinner"></div>
-        <div id="loadingText" style="font-weight:600; font-size:1.1rem; color:var(--text-primary)">Analyzing Security Dependencies...</div>
+        <div id="loadingText" class="loading-text">Analyzing dependencies with Google OSV & Threat Feeds...</div>
     </div>
+
+    <!-- Toast Notifications -->
+    <div id="toastContainer" class="toast-container"></div>
 
     <script src="/static/app.js"></script>
 </body>

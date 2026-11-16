@@ -16,6 +16,24 @@ def test_python_parser(tmp_path):
     assert deps[0].ecosystem == "PyPI"
 
 
+def test_pyproject_toml_parser(tmp_path):
+    pyproject_file = tmp_path / "pyproject.toml"
+    pyproject_file.write_text("""
+[tool.poetry.dependencies]
+python = "^3.10"
+requests = "^2.28.0"
+fastapi = ">=0.95.0"
+""", encoding="utf-8")
+
+    parser = PythonParser()
+    assert parser.can_parse(pyproject_file) is True
+
+    deps = parser.parse(pyproject_file)
+    names = [d.name for d in deps]
+    assert "requests" in names
+    assert "fastapi" in names
+
+
 def test_node_parser(tmp_path):
     pkg_file = tmp_path / "package.json"
     pkg_file.write_text('{"dependencies": {"express": "4.16.0"}, "devDependencies": {"jest": "^27.0.0"}}', encoding="utf-8")
@@ -30,6 +48,28 @@ def test_node_parser(tmp_path):
     assert deps[0].is_direct is True
     assert deps[1].name == "jest"
     assert deps[1].is_direct is False
+
+
+def test_java_parser(tmp_path):
+    pom_file = tmp_path / "pom.xml"
+    pom_file.write_text("""<project xmlns="http://maven.apache.org/POM/4.0.0">
+    <dependencies>
+        <dependency>
+            <groupId>org.apache.logging.log4j</groupId>
+            <artifactId>log4j-core</artifactId>
+            <version>2.14.1</version>
+        </dependency>
+    </dependencies>
+</project>""", encoding="utf-8")
+
+    parser = JavaParser()
+    assert parser.can_parse(pom_file) is True
+
+    deps = parser.parse(pom_file)
+    assert len(deps) == 1
+    assert "log4j-core" in deps[0].name
+    assert deps[0].version == "2.14.1"
+    assert deps[0].ecosystem == "Maven"
 
 
 def test_go_parser(tmp_path):

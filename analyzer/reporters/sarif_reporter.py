@@ -24,6 +24,14 @@ class SARIFReporter:
                         "id": rule_id,
                         "shortDescription": {"text": f"Vulnerability in {dep.name}: {rule_id}"},
                         "fullDescription": {"text": vuln.summary},
+                        "help": {"text": vuln.description or vuln.summary},
+                        "helpUri": vuln.references[0] if vuln.references else f"https://osv.dev/vulnerability/{rule_id}",
+                        "properties": {
+                            "cvss": vuln.cvss_score,
+                            "severity": vuln.severity.value,
+                            "package": dep.name,
+                            "fixed_version": vuln.fixed_version or "None"
+                        },
                         "defaultConfiguration": {
                             "level": "error" if vuln.severity.value in ["CRITICAL", "HIGH"] else "warning"
                         }
@@ -45,8 +53,9 @@ class SARIFReporter:
             "runs": [{
                 "tool": {
                     "driver": {
-                        "name": "DevSecOps Dependency Risk Analyzer",
-                        "version": "1.0.0",
+                        "name": "Software Dependency Security Analyzer",
+                        "version": "2.0.0",
+                        "informationUri": "https://github.com/DevSecOps/software-dependency-security-analyzer",
                         "rules": rules
                     }
                 },

@@ -42,11 +42,16 @@ class Vulnerability:
     source: str = "OSV DB"                # e.g., "OSV DB", "Trivy Scanner"
     reachability: ReachabilityStatus = ReachabilityStatus.UNKNOWN
     reachable_symbols: List[str] = field(default_factory=list)
+    cve_id: Optional[str] = None         # Primary CVE ID if available
+    description: Optional[str] = None    # Detailed vulnerability description
+    remediation_advice: Optional[str] = None
 
     def to_dict(self) -> Dict[str, Any]:
         return {
             "vuln_id": self.vuln_id,
+            "cve_id": self.cve_id or self.vuln_id,
             "summary": self.summary,
+            "description": self.description or self.summary,
             "severity": self.severity.value,
             "cvss_score": self.cvss_score,
             "epss_score": self.epss_score,
@@ -56,6 +61,7 @@ class Vulnerability:
             "source": self.source,
             "reachability": self.reachability.value,
             "reachable_symbols": self.reachable_symbols,
+            "remediation_advice": self.remediation_advice or (f"Upgrade to version {self.fixed_version}" if self.fixed_version else "No known fix yet"),
         }
 
 
@@ -63,13 +69,23 @@ class Vulnerability:
 class Dependency:
     name: str
     version: str
-    ecosystem: str                       # e.g., "PyPI", "npm", "Maven"
+    ecosystem: str                       # e.g., "PyPI", "npm", "Maven", "Go", "crates.io"
     is_direct: bool = True               # Direct vs Transitive dependency flag
     is_dev_dependency: bool = False      # Dev-only build dependency flag
     file_origin: str = ""                # Path to source manifest file
     depth: int = 1                       # Dependency tree depth
     blast_radius_score: float = 0.0      # DAG Graph Centrality score (0 - 100)
     zero_day_risk_score: float = 0.0     # ML Predictive Zero-Day Score (0 - 100)
+    latest_version: Optional[str] = None # Latest released version from package registry
+    is_outdated: bool = False            # True if installed version < latest version
+    license: str = "Unknown"             # Detected package license (e.g. MIT, Apache-2.0, GPL-3.0)
+    license_category: str = "Unknown"    # Permissive, Weak Copyleft, Strong Copyleft, Unknown, Proprietary
+    is_license_risk: bool = False        # True if license is restrictive/problematic (GPL, AGPL, etc.)
+    is_deprecated: bool = False          # True if package is abandoned or deprecated
+    is_malicious: bool = False           # True if known malicious package / malware indicator
+    unmaintained: bool = False           # True if unmaintained/no updates for long period
+    dependencies: List[str] = field(default_factory=list) # Sub-dependencies (for DAG graph)
+    direct_dependents: List[str] = field(default_factory=list) # Dependents referencing this package
 
     @property
     def key(self) -> str:
@@ -86,8 +102,17 @@ class Dependency:
             "depth": self.depth,
             "blast_radius_score": self.blast_radius_score,
             "zero_day_risk_score": self.zero_day_risk_score,
+            "latest_version": self.latest_version or self.version,
+            "is_outdated": self.is_outdated,
+            "license": self.license,
+            "license_category": self.license_category,
+            "is_license_risk": self.is_license_risk,
+            "is_deprecated": self.is_deprecated,
+            "is_malicious": self.is_malicious,
+            "unmaintained": self.unmaintained,
+            "dependencies": self.dependencies,
+            "direct_dependents": self.direct_dependents,
         }
-
 
 
 @dataclass
@@ -151,28 +176,56 @@ class RiskReport:
     target_path: str
     scan_timestamp: str = field(default_factory=lambda: datetime.now().isoformat())
     dependencies: List[DependencyAnalysis] = field(default_factory=list)
-    overall_risk_score: float = 0.0     # 0.0 - 100.0 scale
+    overall_risk_score: float = 0.0     # 0.0 - 100.0 scale (Metric 1)
     risk_level: str = "LOW"             # CRITICAL, HIGH, MEDIUM, LOW
-    total_dependencies: int = 0
-    vulnerable_dependencies_count: int = 0
+    total_dependencies: int = 0         # Metric 2
+    vulnerable_dependencies_count: int = 0 # Metric 3
+    critical_count: int = 0             # Metric 4
+    high_count: int = 0                 # Metric 5
+    outdated_dependencies_count: int = 0 # Metric 6
+    license_compliance_issues_count: int = 0 # Metric 7
+    transitive_dependencies_count: int = 0 # Metric 8
+    security_issues_fixed_count: int = 0   # Metric 9
+    dependency_health_score: float = 100.0 # Metric 10 (0 - 100 scale)
+    medium_count: int = 0
+    low_count: int = 0
+    deprecated_count: int = 0
+    malicious_count: int = 0
     severity_counts: Dict[str, int] = field(default_factory=lambda: {
         "CRITICAL": 0, "HIGH": 0, "MEDIUM": 0, "LOW": 0, "UNKNOWN": 0
     })
     quality_gate_passed: bool = True
-    remediation_recommendations: List[Dict[str, str]] = field(default_factory=list)
+    remediation_recommendations: List[Dict[str, Any]] = field(default_factory=list)
     research_metrics: ResearchMetrics = field(default_factory=ResearchMetrics)
+    license_summary: Dict[str, int] = field(default_factory=dict)
+    dependency_graph: Dict[str, Any] = field(default_factory=lambda: {"nodes": [], "edges": []})
 
     def to_dict(self) -> Dict[str, Any]:
         return {
             "target_path": self.target_path,
             "scan_timestamp": self.scan_timestamp,
+            # 10 Core Security Metrics
             "overall_risk_score": self.overall_risk_score,
-            "risk_level": self.risk_level,
             "total_dependencies": self.total_dependencies,
             "vulnerable_dependencies_count": self.vulnerable_dependencies_count,
+            "critical_count": self.critical_count,
+            "high_count": self.high_count,
+            "medium_count": self.medium_count,
+            "low_count": self.low_count,
+            "outdated_dependencies_count": self.outdated_dependencies_count,
+            "license_compliance_issues_count": self.license_compliance_issues_count,
+            "transitive_dependencies_count": self.transitive_dependencies_count,
+            "security_issues_fixed_count": self.security_issues_fixed_count,
+            "dependency_health_score": self.dependency_health_score,
+            "deprecated_count": self.deprecated_count,
+            "malicious_count": self.malicious_count,
+            # Status and breakdown
+            "risk_level": self.risk_level,
             "severity_counts": self.severity_counts,
             "quality_gate_passed": self.quality_gate_passed,
             "remediation_recommendations": self.remediation_recommendations,
+            "license_summary": self.license_summary,
+            "dependency_graph": self.dependency_graph,
             "research_metrics": self.research_metrics.to_dict(),
             "dependencies": [dep.to_dict() for dep in self.dependencies],
         }

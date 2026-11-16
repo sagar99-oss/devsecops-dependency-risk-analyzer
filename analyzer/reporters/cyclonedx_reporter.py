@@ -18,12 +18,23 @@ class CycloneDXReporter:
             dep = dep_analysis.dependency
             purl = f"pkg:{dep.ecosystem.lower()}/{dep.name}@{dep.version}"
 
+            licenses = []
+            if dep.license and dep.license != "Unknown":
+                licenses.append({"license": {"id": dep.license, "name": dep.license}})
+
             component = {
                 "type": "library",
                 "name": dep.name,
                 "version": dep.version,
                 "purl": purl,
                 "bom-ref": purl,
+                "licenses": licenses,
+                "properties": [
+                    {"name": "security:is_direct", "value": str(dep.is_direct).lower()},
+                    {"name": "security:is_outdated", "value": str(dep.is_outdated).lower()},
+                    {"name": "security:latest_version", "value": dep.latest_version or dep.version},
+                    {"name": "security:license_category", "value": dep.license_category},
+                ]
             }
             components.append(component)
 
@@ -53,13 +64,14 @@ class CycloneDXReporter:
             "metadata": {
                 "timestamp": report.scan_timestamp,
                 "tools": [{
-                    "vendor": "DevSecOps",
-                    "name": "Dependency Risk Analyzer",
-                    "version": "1.0.0"
+                    "vendor": "Software Dependency Security Analyzer",
+                    "name": "Software Dependency Security Analyzer",
+                    "version": "2.0.0"
                 }],
                 "component": {
                     "type": "application",
                     "name": report.target_path,
+                    "version": "latest"
                 }
             },
             "components": components,

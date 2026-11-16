@@ -1,0 +1,54 @@
+# Virtual Environments
+venv/
+.venv/
+env/
+.env/
+ENV/
+
+# Python Bytecode & Cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.pytest_cache/
+.coverage
+htmlcov/
+test-results.xml
+
+# Version Control
+.git/
+.gitignore
+
+# Secrets, Credentials & Local Environment Files
+.env
+.env.*
+*.pem
+*.key
+*.cert
+*.crt
+id_rsa*
+secrets.json
+credentials.json
+token.txt
+
+# Database files (database persistence is handled via Docker volumes)
+devsecops.db
+*.db-journal
+*.db-wal
+*.db-shm
+
+# Local scan reports & temporary artifacts
+report.html
+report.json
+report.sarif
+cyclonedx_sbom.json
+*.tmp
+*.log
+
+# IDE & OS Metadata
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db

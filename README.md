@@ -1,78 +1,114 @@
-# 🛡️ DevSecOps Dependency Risk Analyzer
+# 🛡️ Software Dependency Security Analyzer
 
 [![Python Version](https://img.shields.io/badge/python-3.10%2B-blue.svg)](https://www.python.org/)
-[![Research Innovations](https://img.shields.io/badge/Academic_Research-AST_%7C_DAG_%7C_ML_%7C_Diff-purple.svg)](#-academic-research-innovations)
+[![Security Engine](https://img.shields.io/badge/Vulnerability_DB-Google_OSV.dev_%7C_NVD_%7C_EPSS-00c853.svg)](https://osv.dev/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.100%2B-009688.svg)](https://fastapi.tiangolo.com/)
-[![Vulnerability DB](https://img.shields.io/badge/database-Google_OSV.dev_%7C_Trivy-green.svg)](https://osv.dev/)
 [![SBOM Standard](https://img.shields.io/badge/SBOM-CycloneDX_v1.4-059669.svg)](https://cyclonedx.org/)
+[![Research Innovations](https://img.shields.io/badge/Innovations-AST_Reachability_%7C_DAG_Blast_Radius_%7C_ML_Zero_Day-7c3aed.svg)](#-academic-research--algorithmic-innovations)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-An enterprise-grade, peer-review research-level **DevSecOps Dependency Risk Analyzer** built in Python and FastAPI. This project introduces novel program analysis techniques including **AST Call Graph Reachability Analysis** (false-positive elimination), **Supply-Chain DAG Blast-Radius Modeling**, **Machine Learning Zero-Day Exposure Prediction**, and **AST Differential Breaking-Change Analysis**.
+An enterprise-grade **Software Dependency Security Analyzer** with a modern cybersecurity dark interface, REST API, CLI, and database persistence. It automates dependency vulnerability detection, license compliance analysis, supply chain DAG graphing, automated non-breaking remediation recommendations, and security posture comparison across scans.
 
 ---
 
-## 🔬 Academic Research & Innovation Suites
+## 🌟 Key Highlights & 10 Security Metrics
 
-This application elevates traditional dependency scanning to a research-grade paper-worthy platform by implementing 4 specialized algorithmic suites in `analyzer/research/`:
+The dashboard features **10 core security metrics** computed entirely from actual scan data and live threat intelligence:
 
----
-
-### 1. 🧬 AST Call-Graph Reachability Engine (False-Positive Elimination)
-* **File Location**: [analyzer/research/reachability.py](file:///c:/RV/Internship/New%20folder%20%282%29/analyzer/research/reachability.py)
-* **Objective**: Eliminates false-positive security alerts by verifying whether vulnerable third-party packages or symbols are actually imported or invoked within the application's source code Abstract Syntax Tree (AST).
-* **Algorithm & Workflow**:
-  1. Uses Python's `ast.walk()` parser to statically analyze workspace source code files (`*.py`).
-  2. Extracts `Import`, `ImportFrom`, `Attribute`, and `Name` AST nodes into active `imported_modules` and `invoked_symbols` sets.
-  3. Correlates dependency manifests against AST call graphs:
-     $$R(d) = \begin{cases} \text{REACHABLE}, & \text{if } \text{pkg}(d) \in M_{\text{imported}} \\ \text{UNREACHABLE}, & \text{otherwise} \end{cases}$$
-  4. Automatically discounts `UNREACHABLE` vulnerabilities in the risk scoring engine, preventing alert fatigue and developer burnout.
-
----
-
-### 2. 🕸️ Graph-Theoretic Supply-Chain Blast-Radius Engine (DAG & Centrality)
-* **File Location**: [analyzer/research/graph_engine.py](file:///c:/RV/Internship/New%20folder%20%282%29/analyzer/research/graph_engine.py)
-* **Objective**: Constructs a Directed Acyclic Graph (DAG) $G = (V, E)$ of direct and transitive dependencies to compute degree centrality and cascading blast radius metrics.
-* **Algorithm & Mathematical Model**:
-  1. Computes tree depth weighting factor: 
-     $$\omega_{\text{depth}} = \frac{1.0}{\text{depth}}$$
-  2. Structural hierarchy weighting: Direct $\omega_{\text{direct}} = 25.0$, Transitive $\omega_{\text{direct}} = 10.0$.
-  3. Calculates Centrality Blast-Radius Score per dependency:
-     $$C(d) = \min\left(100.0, \left(|V_{\text{vuln}}| \cdot 8.0 + \max(\text{CVSS}) \cdot 4.0 + \omega_{\text{direct}}\right) \cdot \omega_{\text{depth}}\right)$$
-  4. Computes graph-wide average blast radius $\bar{B}$ across all DAG nodes to measure total supply-chain risk spread.
+1. **Overall Security Risk Score (0–100)**: Composite risk rating reflecting CVSS severity, EPSS exploitability velocity, AST call-graph reachability, and malware indicators.
+2. **Total Dependencies Scanned**: Complete Software Bill of Materials (SBOM) count across direct and transitive dependencies.
+3. **Vulnerable Dependencies**: Number of packages affected by at least one confirmed vulnerability.
+4. **Critical Vulnerabilities**: Count of CVSS 9.0–10.0 or RCE/critical-impact CVEs.
+5. **High-Severity Vulnerabilities**: Count of CVSS 7.0–8.9 security flaws.
+6. **Outdated Dependencies**: Packages with newer upstream versions available in PyPI, npm, or Maven registries.
+7. **License Compliance Issues**: Detected restrictive copyleft licenses (e.g., GPL, AGPL, SSPL) or unverified licenses that threaten intellectual property in commercial projects.
+8. **Transitive Dependencies**: Indirect sub-dependencies pulled into the build hierarchy.
+9. **Security Issues Fixed / Fixable**: Count of vulnerabilities with verified non-vulnerable upgrade versions available.
+10. **Dependency Health Score (0–100)**: Holistic project dependency hygiene score (100 is pristine, reduced by vulnerabilities, outdated packages, unmaintained libraries, and license risks).
 
 ---
 
-### 3. 🔮 Predictive ML Zero-Day & Maintainer Health Engine
-* **File Location**: [analyzer/research/ml_predictor.py](file:///c:/RV/Internship/New%20folder%20%282%29/analyzer/research/ml_predictor.py)
-* **Objective**: Predicts potential zero-day vulnerability exposure and maintainer health deterioration before formal CVE publication.
-* **Algorithm & Mathematical Model**:
-  1. Extracts version staleness heuristics (major/minor gaps), EPSS (Exploit Prediction Scoring System) velocity, and supply chain depth exposure signals.
-  2. Composite Zero-Day Risk Model:
-     $$Z(d) = \min\left(100.0, W_{\text{staleness}} + W_{\text{EPSS}} + W_{\text{transitive}}\right)$$
-     - $W_{\text{staleness}} = 15.0$ if Major $< 2$, else $5.0$
-     - $W_{\text{EPSS}} = 35.0$ if $\text{EPSS} > 0.30$, else $10.0$
-     - $W_{\text{transitive}} = 20.0$ if transitive, else $5.0$
-  3. Flags dependencies with $Z(d) \ge 45.0$ as zero-day threat candidates for proactive auditing.
+## 🧭 Functional Modules & Dashboard Capabilities
+
+The application provides a responsive sidebar with 10 functional modules:
+
+### 1. 📊 Security Overview Dashboard
+- Interactive **10 KPI metric cards** with severity indicators and trend badges.
+- **Vulnerability Severity Breakdown Chart** (Doughnut chart by Critical, High, Medium, Low).
+- **Security Risk Score Trend Chart** (Historical timeline across previous scans).
+- **Research Innovations Panel** displaying false-positives eliminated, average blast radius, predicted zero-days, and breaking changes prevented.
+
+### 2. 🔍 Dependency Scanner
+- **Option 1: Upload Dependency Manifest**: Drag-and-drop or browse files (`requirements.txt`, `package.json`, `pom.xml`, `pyproject.toml`). Real-time validation and progress tracking.
+- **Option 2: Scan Remote GitHub Repository**: Scan public GitHub repositories directly by entering URL and target branch (`main`, `master`, or custom). Automatically crawls tree manifests.
+- Customizable Quality Gate controls (Risk Score threshold slider, fail-on-critical toggle).
+
+### 3. 📦 Dependency Inventory (SBOM)
+- Tabular inventory of all detected direct and transitive dependencies.
+- Displays package name, installed version, latest registry version, ecosystem, dependency depth, license, and security status.
+- Real-time search, ecosystem filtering (PyPI, npm, Maven, Go, crates.io), and status filters (Vulnerable, Outdated, Direct, Transitive, License Risk).
+- Column sorting by package name, version, and ecosystem.
+
+### 4. 🚨 Vulnerability Management & CVE Tracker
+- Comprehensive vulnerability records queried from Google OSV.dev and NVD.
+- Displays CVE ID, CVSS v3 score, EPSS exploitation probability, affected package, fixed version, and AST call-graph reachability status.
+- Filter by severity (All, Critical, High, Medium, Low) and keyword search.
+- **Detail Inspection Modal**: Full vulnerability summary, impact analysis, remediation advice, and direct links to official advisories.
+
+### 5. ⚖️ License Compliance Analyzer
+- Automated license classification:
+  - **Permissive**: MIT, Apache-2.0, BSD, ISC (Safe for commercial use).
+  - **Weak Copyleft**: LGPL, MPL-2.0, EPL-2.0 (Component-level compliance).
+  - **Strong Copyleft (Restrictive)**: GPL-2.0, GPL-3.0, AGPL-3.0, SSPL (Reciprocal license risk).
+  - **Unknown / Missing**: Flagged for manual review.
+- Restrictive license alert banner when GPL/AGPL dependencies are detected.
+- Interactive License Distribution Doughnut chart and full package license table.
+
+### 6. 🕸️ Interactive Dependency Supply Chain Graph
+- HTML5 Canvas Directed Acyclic Graph (DAG) visualizing direct and transitive dependency trees.
+- Color-coded node indicators: Direct (cyan/blue), Transitive (gray/slate), Vulnerable (pulsing red/amber border).
+- Interactive controls: **Zoom In**, **Zoom Out**, **Pan Canvas**, **Reset View**, **Highlight Vulnerable Only**, and **Draggable Nodes**.
+- **Package Inspector Side Drawer**: Click any node to inspect version, license, blast radius, and vulnerability counts.
+
+### 7. 🛠️ Automated Remediation Center
+- Automated, non-breaking upgrade recommendations.
+- Compares installed version vs recommended target version, displaying which CVEs are resolved.
+- SemVer breaking change risk index ($0.0$ to $1.0$).
+- One-click copyable upgrade commands (`pip install --upgrade ...` or `npm install ...`).
+- **Strict Safety Notice**: Recommended guidance only; never automatically modifies dependency files without explicit developer authorization.
+
+### 8. 📜 Scan History & Security Posture Comparison
+- Persistent scan logs stored in SQLite database (`devsecops.db`).
+- Review past scan timestamps, targets, risk scores, and quality gate outcomes.
+- One-click loading of past scans.
+- **Scan Comparison Feature**:
+  - Select two historical scans (Baseline Scan A vs Comparison Scan B).
+  - Calculates Risk Score Delta and Health Score Delta.
+  - Highlights **Newly Introduced Vulnerabilities** (regressions).
+  - Highlights **Resolved Vulnerabilities** (fixed issues).
+  - Tracks added, removed, and upgraded packages.
+
+### 9. 📑 Security Report Generator
+Downloadable executive and machine-readable reports:
+- **HTML Report**: Self-contained executive report with dark styling, KPI cards, charts, and remediation guidance.
+- **JSON Report**: Machine-readable scan object containing all 10 metrics, graph nodes, and inventory.
+- **SARIF Report**: OASIS SARIF v2.1.0 standard report for native GitHub Code Scanning integration.
+- **CycloneDX SBOM**: CycloneDX v1.4 JSON SBOM with purls, licenses, and component hashes.
+
+### 10. ⚙️ Settings & System Information
+- Quality Gate threshold configuration.
+- Real-time threat feed status indicators (Google OSV.dev, FIRST.org EPSS, PyPI / npm registries).
 
 ---
 
-### 4. 🤖 AST Differential Breaking-Change Risk Predictor
-* **File Location**: [analyzer/research/ast_diff.py](file:///c:/RV/Internship/New%20folder%20%282%29/analyzer/research/ast_diff.py)
-* **Objective**: Calculates operational API breakage risk $B(d) \in [0.0, 1.0]$ when applying automated security patches and version updates.
-* **Algorithm & Mathematical Model**:
-  1. Compares Semantic Version deltas between current version $V_{\text{curr}} = (M_c, m_c, p_c)$ and remediation fix version $V_{\text{fix}} = (M_f, m_f, p_f)$.
-  2. Assigns breaking change risk rating:
-     $$B(d) = \begin{cases} 0.85, & \text{if } M_f > M_c \text{ (Major Upgrade — High API breaking risk)} \\ 0.40, & \text{if } m_f > m_c \text{ (Minor Upgrade — Moderate risk)} \\ 0.10, & \text{if } p_f > p_c \text{ (Patch Upgrade — Low risk, backwards-compatible)} \end{cases}$$
-  3. Quantifies total operational breaking changes prevented during security remediation planning.
+## 🔬 Academic Research & Algorithmic Innovations
 
----
+The scanner integrates 4 specialized program analysis algorithmic suites:
 
-## 📌 General Features
-
-- **🌐 Multi-Ecosystem Support**: Parses Python (`requirements.txt`, `pyproject.toml`), Node.js (`package.json`), Java Maven (`pom.xml`), Go (`go.mod`), and Rust (`Cargo.lock`).
-- **🔍 Multi-Engine Scanning**: Google OSV.dev REST API + Aqua Trivy CLI + FIRST.org EPSS exploitability ratings.
-- **🖥️ Glassmorphism Web Dashboard**: Real-time browser UI at `http://127.0.0.1:8000` with Chart.js charts and live Academic Research Metrics panel.
-- **📦 Enterprise Exporters & OWASP Integration**: CycloneDX v1.4 JSON SBOM, OWASP Dependency-Track REST API exporter, SARIF 2.1.0 for GitHub Code Scanning.
+1. **🧬 AST Call-Graph Reachability Engine** (`analyzer/research/reachability.py`): Parses application source code AST to verify if vulnerable third-party symbols are actually imported or invoked. Disregards unreachable false-positive alerts.
+2. **🕸️ Graph-Theoretic Blast-Radius Engine** (`analyzer/research/graph_engine.py`): Models dependency hierarchy DAGs, computing Degree Centrality and cascading supply-chain blast-radius metrics.
+3. **🔮 Predictive ML Zero-Day & Maintainer Health Engine** (`analyzer/research/ml_predictor.py`): Analyzes version staleness velocity, maintainer activity, and EPSS velocity to identify potential zero-day exposure.
+4. **🤖 AST Differential Breaking-Change Predictor** (`analyzer/research/ast_diff.py`): Evaluates semantic version shifts between current and patched versions to quantify breaking change risks.
 
 ---
 
@@ -81,63 +117,86 @@ This application elevates traditional dependency scanning to a research-grade pa
 ```mermaid
 flowchart TD
     A[Dependency Manifests / GitHub Repo] --> B[Multi-Ecosystem Parser Engine]
-    B --> C[Dependencies List]
+    B --> C[Parsed Dependency List]
     
-    subgraph Research Engine Suite
-        C --> D[AST Call Graph Reachability Analyzer]
-        C --> E[Supply Chain DAG Blast Radius Engine]
-        C --> F[Predictive ML Zero-Day Engine]
-        C --> G[AST Differential Breaking Change Analyzer]
+    subgraph Metadata & Security Feeds
+        C --> D1[Google OSV.dev REST API]
+        C --> D2[FIRST.org EPSS API]
+        C --> D3[Package Registry & License Catalog]
     end
     
-    D & E & F & G --> H[Parallel ThreadPool Vulnerability Scanner]
-    H --> I[Composite DevSecOps Risk Engine]
-    I --> J[SQLite Database Persistence]
-    J --> K[FastAPI REST Server & Glassmorphism Web Dashboard]
+    subgraph Research Engine Suite
+        C --> E1[AST Reachability Analyzer]
+        C --> E2[Supply Chain DAG Blast Radius]
+        C --> E3[Predictive ML Zero-Day Engine]
+        C --> E4[AST Differential Breaking Change]
+    end
+    
+    D1 & D2 & D3 & E1 & E2 & E3 & E4 --> F[Composite Risk Scoring Engine]
+    F --> G[10 Core Security Metrics]
+    
+    G --> H[SQLite Database Persistence]
+    G --> I[FastAPI REST API Server]
+    
+    I --> J[Cybersecurity Web Dashboard]
+    I --> K[Report Generators: HTML, JSON, SARIF, CycloneDX]
 ```
 
 ---
 
-## 🧮 Composite Risk Scoring Formula
+## 🚀 Installation & Execution
 
-The Risk Engine calculates dependency risk using:
+### 1. Prerequisites
+- Python 3.10+ (tested on Python 3.11, 3.12, 3.13)
+- Git (optional, for remote repository scanning)
 
-$$R_{\text{dep}} = \max_{v \in \text{ReachableVulns}} \left( \text{CVSS}_v \times (1 + \text{EPSS}_v \times 0.5) \right) \times W_{\text{dependency}}$$
-
-Where:
-- $W_{\text{dependency}} = 1.0$ for **Direct Dependencies**, and $0.65$ for **Transitive Dependencies**.
-- Unreachable false positives ($v \in \text{Unreachable}$) are excluded from risk accumulation.
-
-$$\text{Risk Score} = \min \left( 100.0, \, \frac{\sum R_{\text{dep}}}{N_{\text{total}}} \times 6.0 + 10.0 \times N_{\text{critical}} + 3.0 \times N_{\text{high}} \right)$$
-
----
-
-## 🚀 Quick Start
-
-### 1. Installation
+### 2. Setup Virtual Environment
 
 ```bash
+# Clone or navigate to the repository
+cd "c:\Users\sagar\OneDrive\Desktop\Intern Project"
+
+# Create and activate virtual environment
+python -m venv venv
+
+# Windows PowerShell:
+.\venv\Scripts\Activate.ps1
+# Windows Command Prompt:
+.\venv\Scripts\activate.bat
+# Linux/macOS:
+source venv/bin/activate
+
+# Install dependencies
 pip install -r requirements.txt pytest httpx
 ```
 
-### 2. Start Web Server & Dashboard
+### 3. Launch Web Dashboard & REST Server
 
 ```bash
-python -m uvicorn server:app --host 127.0.0.1 --port 8000
+python -m uvicorn server:app --host 127.0.0.1 --port 8000 --reload
 ```
-Open **`http://127.0.0.1:8000`** in your browser.
 
-### 3. CLI Scanning Command
+Open your browser and navigate to:
+👉 **`http://127.0.0.1:8000`**
+
+### 4. CLI Scanning Command
 
 ```bash
-python main.py scan ./samples --html report.html --json report.json --sarif report.sarif
+# Scan a local file
+python main.py scan samples/sample_requirements.txt --html report.html --json report.json --sarif report.sarif
+
+# Scan with strict risk threshold
+python main.py scan samples/sample_package.json --threshold 60.0
+
+# Scan a remote GitHub repository
+python main.py scan-github https://github.com/pallets/flask --branch main --html flask_report.html
 ```
 
 ---
 
-## 🧪 Running Test Suite
+## 🧪 Automated Testing
 
-Run all 13 unit & integration tests covering parsers, research engines, scoring models, and FastAPI endpoints:
+Run the automated test suite with pytest:
 
 ```bash
 pytest
@@ -146,41 +205,65 @@ pytest
 Output:
 ```text
 ============================= test session starts =============================
-tests/test_parsers.py ....                                               [ 30%]
-tests/test_research.py ....                                              [ 61%]
-tests/test_scoring.py ..                                                 [ 76%]
-tests/test_server.py ...                                                 [100%]
-============================= 13 passed in 6.16s ==============================
+tests/test_metadata.py ...                                               [ 13%]
+tests/test_modules.py ...                                                [ 26%]
+tests/test_parsers.py ......                                             [ 52%]
+tests/test_research.py ....                                              [ 69%]
+tests/test_scoring.py ..                                                 [ 78%]
+tests/test_server.py .....                                               [100%]
+======================= 23 passed, 1 warning in 34.36s ========================
 ```
 
 ---
 
-## 📂 Project Structure
+## 📡 REST API Reference
+
+| Method | Endpoint | Description |
+|---|---|---|
+| `GET` | `/` | Serves the interactive cybersecurity dashboard |
+| `GET` | `/api/health` | System and threat feed status |
+| `POST` | `/api/scan/file` | Upload manifest file (`requirements.txt`, `package.json`, `pom.xml`, `pyproject.toml`) |
+| `POST` | `/api/scan/github` | Scan public/private GitHub repository manifests |
+| `GET` | `/api/scans` | List previous scan records |
+| `GET` | `/api/scans/{scan_id}` | Retrieve complete scan report by ID |
+| `GET` | `/api/scans/compare?scan_a={id}&scan_b={id}` | Compare two scans: score deltas, newly introduced & resolved CVEs |
+| `GET` | `/api/scans/{scan_id}/export/{format}` | Export report as `html`, `json`, `sarif`, or `cyclonedx` |
+| `GET` | `/api/analytics` | Aggregate statistics and historical trend data |
+| `POST` | `/api/scans/{scan_id}/push-dependency-track` | Push CycloneDX SBOM to OWASP Dependency-Track |
+
+---
+
+## 📁 Project Directory Structure
 
 ```text
-devsecops-dependency-analyzer/
-├── main.py                     # CLI Entrypoint
+Software-Dependency-Security-Analyzer/
+├── main.py                     # CLI Entry point
 ├── server.py                   # FastAPI Application Server & REST API
-├── db.py                       # SQLite Database models & persistence
+├── db.py                       # SQLite Database models, migrations & scan comparison
 ├── Dockerfile                  # Container build instructions
-├── docker-compose.yml          # Docker Compose configuration
+├── docker-compose.yml          # Container orchestration configuration
+├── Jenkinsfile                 # CI/CD deployment pipeline for Azure VM
 ├── requirements.txt            # Python dependencies
-├── README.md                   # Complete documentation
+├── README.md                   # Comprehensive documentation
+├── samples/                    # Sample manifests for all supported formats
+│   ├── sample_requirements.txt # Python requirements
+│   ├── sample_pyproject.toml   # Poetry / pyproject.toml
+│   ├── sample_package.json     # Node.js manifest
+│   └── sample_pom.xml          # Java Maven POM
 ├── analyzer/
-│   ├── models.py               # Data models including ResearchMetrics
-│   ├── github.py               # GitHub repository manifest fetcher
-│   ├── parsers/                # Manifest Parsers (Python, Node, Java, Go, Rust)
-│   ├── scanners/               # Vulnerability Scanner Engine (OSV.dev, Trivy, EPSS)
-│   ├── research/               # Academic Research Engines
-│   │   ├── reachability.py     # AST Call Graph Reachability Engine
-│   │   ├── graph_engine.py     # Supply-Chain DAG Blast Radius Engine
-│   │   ├── ml_predictor.py     # ML Zero-Day Exposure Predictor
-│   │   └── ast_diff.py         # AST Differential Breaking Change Analyzer
-│   ├── scoring/
-│   │   └── risk_engine.py      # DevSecOps Risk Scoring Engine
-│   └── reporters/              # Multi-Format Report Generators
-├── web/                        # Glassmorphism Dashboard UI & JS
-└── tests/                      # Pytest automated test suite
+│   ├── models.py               # Data models with 10 metrics & ResearchMetrics
+│   ├── metadata.py             # License detection, outdated checking & registry query
+│   ├── github.py               # Remote GitHub manifest fetcher
+│   ├── parsers/                # Parsers: Python, Node, Java, Go, Rust
+│   ├── scanners/               # OSV Scanner & ScanManager with transitive resolution
+│   ├── research/               # Academic Research Engines (AST, DAG, ML, Diff)
+│   ├── scoring/                # RiskEngine computing the 10 Core Security Metrics
+│   └── reporters/              # HTML, JSON, SARIF, CycloneDX & Terminal Reporters
+├── web/                        # Modern Dark Cybersecurity UI
+│   ├── index.html              # 10-module dashboard layout & modals
+│   ├── dashboard.css           # Modern dark design & responsive layout
+│   └── app.js                  # Frontend controllers, Chart.js & canvas graph
+└── tests/                      # Automated test suite (23 tests passing)
 ```
 
 ---

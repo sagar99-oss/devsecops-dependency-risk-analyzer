@@ -1,5 +1,5 @@
 import requests
-from typing import List, Optional, Dict, Any
+from typing import List, Optional, Dict, Any, Tuple
 from ..models import Dependency, Vulnerability, Severity
 
 OSV_API_URL = "https://api.osv.dev/v1/query"
@@ -7,13 +7,24 @@ EPSS_API_URL = "https://api.first.org/data/v1/epss"
 
 
 class OSVScanner:
-    """Scanner leveraging Google OSV (Open Source Vulnerability) DB REST API."""
+    """
+    Advanced Dependency Vulnerability Scanner leveraging Google OSV.dev REST API.
+    Identifies:
+    - Known CVEs / GHSAs
+    - Critical, High, Medium, Low severity vulnerabilities
+    - CVSS scores & vectors
+    - EPSS (Exploit Prediction Scoring System) probability
+    - Fixed versions and affected version ranges
+    - Official vulnerability references
+    - Malicious package / malware indicators (MAL- prefix)
+    """
 
     ECOSYSTEM_MAP = {
         "PyPI": "PyPI",
         "npm": "npm",
         "Maven": "Maven",
         "Go": "Go",
+        "crates.io": "crates.io",
     }
 
     def __init__(self):
@@ -24,7 +35,7 @@ class OSVScanner:
         ecosystem = self.ECOSYSTEM_MAP.get(dep.ecosystem, dep.ecosystem)
 
         # OSV query payload
-        payload = {
+        payload: Dict[str, Any] = {
             "package": {
                 "name": dep.name,
                 "ecosystem": ecosystem
@@ -34,39 +45,46 @@ class OSVScanner:
             payload["version"] = dep.version
 
         try:
-            response = requests.post(OSV_API_URL, json=payload, timeout=5)
+            response = requests.post(OSV_API_URL, json=payload, timeout=6)
             if response.status_code == 200:
                 data = response.json()
                 vulns_raw = data.get("vulns", [])
                 seen_ids = set()
                 for item in vulns_raw:
-                    vuln = self._parse_osv_item(item)
+                    vuln = self._parse_osv_item(item, dep)
                     if vuln and vuln.vuln_id not in seen_ids:
                         seen_ids.add(vuln.vuln_id)
                         vulnerabilities.append(vuln)
+                        # Check for malware indicator
+                        if vuln.vuln_id.startswith("MAL-") or "malicious" in vuln.summary.lower():
+                            dep.is_malicious = True
 
         except Exception as e:
-            print(f"[!] Warning: OSV API query failed for {dep.name}@{dep.version}: {e}", flush=True)
+            # Graceful error handling: log warning and do NOT fabricate fake results
+            print(f"[!] Warning: OSV API query failed or timed out for {dep.name}@{dep.version}: {e}", flush=True)
 
         return vulnerabilities
 
-
-    def _parse_osv_item(self, item: Dict[str, Any]) -> Optional[Vulnerability]:
-        vuln_id = item.get("id", "UNKNOWN-VULN")
-        summary = item.get("summary") or item.get("details", "No summary provided.")
-        # Truncate summary if too long
-        if len(summary) > 150:
-            summary = summary[:147] + "..."
+    def _parse_osv_item(self, item: Dict[str, Any], dep: Optional[Dependency] = None) -> Optional[Vulnerability]:
+        raw_id = item.get("id", "UNKNOWN-VULN")
+        full_details = item.get("details", "")
+        summary_raw = item.get("summary") or full_details or "No summary provided."
+        
+        # Clean summary for table view
+        summary = summary_raw.replace("\n", " ").strip()
+        if len(summary) > 160:
+            summary = summary[:157] + "..."
 
         # Look for CVE aliases if available
         aliases = item.get("aliases", [])
-        cve_id = next((a for a in aliases if a.startswith("CVE-")), vuln_id)
+        cve_alias = next((a for a in aliases if a.startswith("CVE-")), None)
+        cve_id = cve_alias if cve_alias else (raw_id if raw_id.startswith("CVE-") else raw_id)
 
         # Extract Severity and CVSS
         severity, cvss = self._extract_severity_and_cvss(item)
 
-        # Extract Fixed Version
-        fixed_ver = self._extract_fixed_version(item)
+        # Extract Fixed Version and Affected Versions
+        fixed_ver, affected_str = self._extract_version_bounds(item)
 
         # Extract References
         refs = [ref.get("url") for ref in item.get("references", []) if ref.get("url")]
@@ -74,28 +92,38 @@ class OSVScanner:
         # Query EPSS score if CVE ID is available
         epss_score = self._fetch_epss_score(cve_id) if cve_id.startswith("CVE-") else 0.05
 
+        # Remediation Advice
+        remediation_advice = (
+            f"Upgrade {dep.name if dep else 'package'} to version {fixed_ver} or higher."
+            if fixed_ver
+            else "No official fix version reported. Verify project usage, isolate dependency, or look for alternative packages."
+        )
+
         return Vulnerability(
             vuln_id=cve_id,
+            cve_id=cve_id,
             summary=summary,
+            description=full_details or summary_raw,
             severity=severity,
             cvss_score=cvss,
             epss_score=epss_score,
             fixed_version=fixed_ver,
-            references=refs[:3],
+            affected_versions=affected_str,
+            references=refs[:4],
             source="OSV.dev DB",
+            remediation_advice=remediation_advice,
         )
 
-    def _extract_severity_and_cvss(self, item: Dict[str, Any]) -> (Severity, float):
+    def _extract_severity_and_cvss(self, item: Dict[str, Any]) -> Tuple[Severity, float]:
         cvss_score = 0.0
         severity_str = "UNKNOWN"
 
         # Try to parse CVSS vectors or scores from OSV database
         severities = item.get("severity", [])
         for s in severities:
-            score_type = s.get("type")
+            score_type = s.get("type", "")
             score_val = s.get("score")
-            if score_type in ["CVSS_V3", "CVSS_V2"] and score_val:
-                # Basic CVSS rating extraction from vector or float
+            if "CVSS" in score_type and score_val:
                 cvss_score = self._parse_cvss_vector_or_score(score_val)
                 break
 
@@ -103,6 +131,11 @@ class OSVScanner:
         database_specific = item.get("database_specific", {})
         if "severity" in database_specific:
             severity_str = str(database_specific["severity"]).upper()
+        if "cvss" in database_specific and cvss_score == 0.0:
+            try:
+                cvss_score = float(database_specific["cvss"].get("score", 0.0))
+            except Exception:
+                pass
 
         # Deduce severity from CVSS score if not explicitly set
         if cvss_score > 0:
@@ -137,12 +170,11 @@ class OSVScanner:
     def _parse_cvss_vector_or_score(self, cvss_val: Any) -> float:
         try:
             return float(cvss_val)
-        except ValueError:
+        except (ValueError, TypeError):
             pass
 
-        # Parse CVSS v3 Vector String (e.g. CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H)
+        # Parse CVSS v3/v3.1 Vector String (e.g. CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H)
         if isinstance(cvss_val, str) and cvss_val.startswith("CVSS:"):
-            # Estimate CVSS based on vector metrics
             score = 5.0
             if "C:H" in cvss_val and "I:H" in cvss_val and "A:H" in cvss_val:
                 score = 9.8 if "PR:N" in cvss_val else 8.8
@@ -153,16 +185,31 @@ class OSVScanner:
             return score
         return 5.0
 
-    def _extract_fixed_version(self, item: Dict[str, Any]) -> Optional[str]:
+    def _extract_version_bounds(self, item: Dict[str, Any]) -> Tuple[Optional[str], Optional[str]]:
+        fixed_version = None
+        affected_ranges = []
+
         for affected in item.get("affected", []):
             for r in affected.get("ranges", []):
-                for event in r.get("events", []):
+                events = r.get("events", [])
+                introduced = None
+                fixed = None
+                for event in events:
+                    if "introduced" in event:
+                        introduced = event["introduced"]
                     if "fixed" in event:
-                        return str(event["fixed"])
-        return None
+                        fixed = event["fixed"]
+                        if not fixed_version:
+                            fixed_version = str(fixed)
+                if introduced or fixed:
+                    bound = f">={introduced or '0.0.0'}" + (f", <{fixed}" if fixed else "")
+                    affected_ranges.append(bound)
+
+        affected_str = "; ".join(affected_ranges) if affected_ranges else None
+        return fixed_version, affected_str
 
     def _fetch_epss_score(self, cve_id: str) -> float:
-        """Fetches EPSS (Exploit Prediction Scoring System) score from FIRST.org API with local caching."""
+        """Fetches EPSS score from FIRST.org API with caching."""
         if cve_id in self._epss_cache:
             return self._epss_cache[cve_id]
 
@@ -178,4 +225,3 @@ class OSVScanner:
 
         self._epss_cache[cve_id] = score
         return score
-

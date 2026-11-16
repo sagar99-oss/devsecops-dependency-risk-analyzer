@@ -1,3 +1,3 @@
 """
-DevSecOps Dependency Risk Analyzer Test Suite
+Software Dependency Security Analyzer Test Suite
 """

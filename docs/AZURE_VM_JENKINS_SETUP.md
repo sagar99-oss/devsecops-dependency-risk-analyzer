@@ -1,6 +1,6 @@
 # 🚀 Jenkins CI/CD Pipeline to Azure VM Setup Guide
 
-This guide walks you through setting up and running the automated Jenkins pipeline to build, test, and deploy the **DevSecOps Dependency Risk Analyzer** to an **Azure Virtual Machine (Ubuntu Linux)**.
+This guide walks you through setting up and running the automated Jenkins pipeline to build, test, and deploy the **Software Dependency Security Analyzer** to an **Azure Virtual Machine (Ubuntu Linux)**.
 
 ---
 
