@@ -3,7 +3,7 @@ pipeline {
 
     parameters {
         choice(name: 'DEPLOY_ENV', choices: ['production', 'staging'], description: 'Deployment Environment')
-        string(name: 'AZURE_VM_HOST', defaultValue: '', description: 'Azure VM Public IP or FQDN (leave empty to use AZURE_VM_IP secret)')
+        string(name: 'AZURE_VM_HOST', defaultValue: '20.193.140.76', description: 'Azure VM Public IP or FQDN')
         booleanParam(name: 'RUN_TESTS', defaultValue: true, description: 'Run pytest test suite before build')
         booleanParam(name: 'RUN_SECURITY_SCAN', defaultValue: true, description: 'Run Trivy container vulnerability scan')
         booleanParam(name: 'FAIL_ON_VULNERABILITY', defaultValue: false, description: 'Fail build if Critical/High vulnerabilities are found')
@@ -11,16 +11,16 @@ pipeline {
 
     environment {
         // --- Application & Registry Configuration ---
-        APP_NAME              = 'devsecops-analyzer'
-        ACR_REGISTRY          = credentials('ACR_REGISTRY_HOST') // e.g., 'myregistry.azurecr.io'
-        ACR_CREDS_ID          = 'azure-acr-credentials'          // Jenkins Credential ID (Username/Password)
+        APP_NAME              = 'dependencysec-analyzer'
+        ACR_REGISTRY          = credentials('ACR_REGISTRY_HOST') // e.g., 'acrdevsecopshs.azurecr.io'
+        ACR_CREDS_ID          = 'ACR_CREDENTIALS'                // Jenkins Credential ID (Username/Password)
         
         // --- Azure Virtual Machine Configuration ---
         AZURE_VM_USER         = 'azureuser'
-        TARGET_VM_HOST        = "${params.AZURE_VM_HOST ?: credentials('AZURE_VM_IP')}"
+        TARGET_VM_HOST        = "${params.AZURE_VM_HOST ?: '20.193.140.76'}"
         VM_SSH_CREDS_ID       = 'azure-vm-ssh-key'               // Jenkins Credential ID (SSH Username with private key)
-        REMOTE_DEPLOY_DIR     = '/opt/devsecops-analyzer'
-        APP_PORT              = '8000'
+        REMOTE_DEPLOY_DIR     = '/opt/dependencysec-analyzer'
+        APP_PORT              = '8001'
 
         // --- Derived Image Tags ---
         IMAGE_FULL_TAG        = "${ACR_REGISTRY}/${APP_NAME}:${BUILD_NUMBER}"
@@ -98,20 +98,18 @@ pipeline {
             steps {
                 echo "Scanning Docker image with Trivy for vulnerabilities..."
                 script {
-                    def exitCode = params.FAIL_ON_VULNERABILITY ? '1' : '0'
                     if (isUnix()) {
-                        sh """
-                            docker run --rm \
-                                -v /var/run/docker.sock:/var/run/docker.sock \
-                                aquasec/trivy:latest image \
-                                --severity HIGH,CRITICAL \
-                                --exit-code ${exitCode} \
-                                ${IMAGE_FULL_TAG} || true
-                        """
+                        if (params.FAIL_ON_VULNERABILITY) {
+                            sh "docker run --rm -v /var/run/docker.sock:/var/run/docker.sock aquasec/trivy:latest image --severity HIGH,CRITICAL --exit-code 1 ${IMAGE_FULL_TAG}"
+                        } else {
+                            sh "docker run --rm -v /var/run/docker.sock:/var/run/docker.sock aquasec/trivy:latest image --severity HIGH,CRITICAL --exit-code 0 ${IMAGE_FULL_TAG} || true"
+                        }
                     } else {
-                        bat """
-                            docker run --rm -v //var/run/docker.sock:/var/run/docker.sock aquasec/trivy:latest image --severity HIGH,CRITICAL --exit-code ${exitCode} ${IMAGE_FULL_TAG} || exit 0
-                        """
+                        if (params.FAIL_ON_VULNERABILITY) {
+                            bat "docker run --rm -v //var/run/docker.sock:/var/run/docker.sock aquasec/trivy:latest image --severity HIGH,CRITICAL --exit-code 1 ${IMAGE_FULL_TAG}"
+                        } else {
+                            bat "docker run --rm -v //var/run/docker.sock:/var/run/docker.sock aquasec/trivy:latest image --severity HIGH,CRITICAL --exit-code 0 ${IMAGE_FULL_TAG} || exit 0"
+                        }
                     }
                 }
             }
@@ -157,29 +155,12 @@ pipeline {
                                 echo "Copying docker-compose.yml and deploy scripts to Azure VM..."
                                 scp $SSH_OPTS docker-compose.yml deploy/deploy.sh ${SSH_USER}@${TARGET_VM_HOST}:${REMOTE_DEPLOY_DIR}/
 
-                                echo "Executing remote deployment script on Azure VM..."
-                                ssh $SSH_OPTS ${SSH_USER}@${TARGET_VM_HOST} \
-                                    "chmod +x ${REMOTE_DEPLOY_DIR}/deploy.sh && \
-                                     ${REMOTE_DEPLOY_DIR}/deploy.sh \
-                                         '${REMOTE_DEPLOY_DIR}' \
-                                         '${ACR_REGISTRY}/${APP_NAME}' \
-                                         '${BUILD_NUMBER}' \
-                                         '${ACR_REGISTRY}' \
-                                         '${ACR_USER}' \
-                                         '${ACR_PASS}'"
+                                echo "Executing remote deployment script on Azure VM using secure SSH stdin credential transfer..."
+                                printf '%s\n' "$ACR_PASS" | ssh $SSH_OPTS ${SSH_USER}@${TARGET_VM_HOST} \
+                                    "read -r ACR_PASSWORD && export ACR_PASSWORD && chmod +x ${REMOTE_DEPLOY_DIR}/deploy.sh && ${REMOTE_DEPLOY_DIR}/deploy.sh '${REMOTE_DEPLOY_DIR}' '${ACR_REGISTRY}/${APP_NAME}' '${BUILD_NUMBER}' '${ACR_REGISTRY}' '${ACR_USER}' '${APP_PORT}'"
                             '''
                         } else {
-                            bat """
-                                @echo off
-                                echo Testing SSH connectivity to Azure VM...
-                                ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=15 -i "%SSH_KEY_FILE%" %SSH_USER%@%TARGET_VM_HOST% "mkdir -p %REMOTE_DEPLOY_DIR%"
-
-                                echo Copying docker-compose.yml and deploy scripts to Azure VM...
-                                scp -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=15 -i "%SSH_KEY_FILE%" docker-compose.yml deploy/deploy.sh %SSH_USER%@%TARGET_VM_HOST%:%REMOTE_DEPLOY_DIR%/
-
-                                echo Executing remote deployment script on Azure VM...
-                                ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=15 -i "%SSH_KEY_FILE%" %SSH_USER%@%TARGET_VM_HOST% "chmod +x %REMOTE_DEPLOY_DIR%/deploy.sh && %REMOTE_DEPLOY_DIR%/deploy.sh '%REMOTE_DEPLOY_DIR%' '%ACR_REGISTRY%/%APP_NAME%' '%BUILD_NUMBER%' '%ACR_REGISTRY%' '%ACR_USER%' '%ACR_PASS%'"
-                            """
+                            error("Secure SSH stdin credential transfer is not supported on Windows agents. Azure VM deployment must run on a Linux agent to prevent secret exposure in command arguments.")
                         }
                     }
                 }
@@ -188,39 +169,45 @@ pipeline {
 
         stage('Post-Deployment Smoke Test') {
             steps {
-                echo "Verifying deployment health at http://${TARGET_VM_HOST}:${APP_PORT}/..."
+                echo "Verifying deployment health at http://${TARGET_VM_HOST}:${APP_PORT}/api/health..."
                 script {
                     if (isUnix()) {
                         sh '''
-                            for i in $(seq 1 10); do
-                                STATUS=$(curl -s -o /dev/null -w "%{http_code}" "http://${TARGET_VM_HOST}:${APP_PORT}/" || echo "000")
+                            HEALTHY=0
+                            for i in $(seq 1 15); do
+                                STATUS=$(curl -s -o /dev/null -w "%{http_code}" "http://${TARGET_VM_HOST}:${APP_PORT}/api/health" || echo "000")
                                 if [ "$STATUS" -eq 200 ]; then
-                                    echo "Verification Passed: Application is healthy and responding with HTTP 200!"
-                                    exit 0
+                                    echo "Verification Passed: Application is healthy and responding with HTTP 200 on /api/health!"
+                                    HEALTHY=1
+                                    break
                                 fi
-                                echo "Waiting for external endpoint to respond... Attempt $i/10 (HTTP $STATUS)"
+                                echo "Waiting for health endpoint to respond... Attempt $i/15 (HTTP $STATUS)"
                                 sleep 5
                             done
-                            echo "WARNING: Smoke test did not return 200 within 50s. Please check NSG rules on Azure VM port ${APP_PORT}."
+                            if [ "$HEALTHY" -ne 1 ]; then
+                                echo "ERROR: Post-deployment smoke test failed! Application did not respond with HTTP 200 on /api/health within 75s."
+                                exit 1
+                            fi
                         '''
                     } else {
                         powershell """
                             \$healthy = \$false
-                            for (\$i = 1; \$i -le 10; \$i++) {
+                            for (\$i = 1; \$i -le 15; \$i++) {
                                 try {
-                                    \$response = Invoke-WebRequest -Uri "http://${TARGET_VM_HOST}:${APP_PORT}/" -UseBasicParsing -TimeoutSec 5
+                                    \$response = Invoke-WebRequest -Uri "http://${TARGET_VM_HOST}:${APP_PORT}/api/health" -UseBasicParsing -TimeoutSec 5
                                     if (\$response.StatusCode -eq 200) {
-                                        Write-Host "Verification Passed: Application is healthy and responding with HTTP 200!"
+                                        Write-Host "Verification Passed: Application is healthy and responding with HTTP 200 on /api/health!"
                                         \$healthy = \$true
                                         break
                                     }
                                 } catch {
-                                    Write-Host "Waiting for external endpoint to respond... Attempt \$i/10"
+                                    Write-Host "Waiting for health endpoint to respond... Attempt \$i/15"
                                 }
                                 Start-Sleep -Seconds 5
                             }
                             if (-not \$healthy) {
-                                Write-Warning "Smoke test did not return 200 within 50s. Please check NSG rules on Azure VM port ${APP_PORT}."
+                                Write-Error "Post-deployment smoke test failed! Application did not respond with HTTP 200 on /api/health within 75s."
+                                exit 1
                             }
                         """
                     }

@@ -35,16 +35,17 @@ sudo apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plug
 # 4. Add current user to docker group (avoids needing sudo for docker commands)
 sudo usermod -aG docker "$USER"
 
-# 5. Create application directory
-sudo mkdir -p /opt/devsecops-analyzer
-sudo chown -R "$USER":"$USER" /opt/devsecops-analyzer
-sudo chmod -R 775 /opt/devsecops-analyzer
+# 5. Create application directories
+sudo mkdir -p /opt/devsecops-analyzer /opt/dependencysec-analyzer
+sudo chown -R "$USER":"$USER" /opt/devsecops-analyzer /opt/dependencysec-analyzer
+sudo chmod -R 775 /opt/devsecops-analyzer /opt/dependencysec-analyzer
 
 # 6. Configure local UFW firewall (if enabled)
 if sudo ufw status | grep -q "Status: active"; then
-    echo "Opening port 22 and 8000 in UFW..."
+    echo "Opening port 22, 8000, and 8001 in UFW..."
     sudo ufw allow 22/tcp
     sudo ufw allow 8000/tcp
+    sudo ufw allow 8001/tcp
     sudo ufw reload
 fi
 

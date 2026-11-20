@@ -1,12 +1,9 @@
 services:
-  devsecops-analyzer:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    image: ${IMAGE_NAME:-devsecops-analyzer}:${IMAGE_TAG:-latest}
-    container_name: devsecops-analyzer
+  dependencysec-analyzer:
+    image: ${IMAGE_NAME:-dependencysec-analyzer}:${IMAGE_TAG:-latest}
+    container_name: dependencysec-analyzer
     ports:
-      - "8000:8000"
+      - "${APP_PORT:-8001}:8000"
     environment:
       - PYTHONUNBUFFERED=1
     volumes:

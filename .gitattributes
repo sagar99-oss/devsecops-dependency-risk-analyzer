@@ -1,0 +1,5 @@
+# Ensure shell scripts always use LF line endings across platforms
+*.sh text eol=lf
+Jenkinsfile text eol=lf
+Dockerfile text eol=lf
+*.Dockerfile text eol=lf

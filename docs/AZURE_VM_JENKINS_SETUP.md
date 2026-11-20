@@ -20,7 +20,7 @@ This guide walks you through setting up and running the automated Jenkins pipeli
      │
      ▼
 [Azure VM (Ubuntu)]
-  └── Docker Compose running FastAPI & Dashboard on port 8000
+  └── Docker Compose running FastAPI & Dashboard on port 8001 (preserving port 8000)
 ```
 
 ---
@@ -42,15 +42,15 @@ az vm create \
 ### 1.2 Open Inbound Ports in Azure Network Security Group (NSG)
 Your Azure VM needs:
 * **Port 22 (SSH)**: For Jenkins to connect and deploy.
-* **Port 8000 (HTTP)**: For accessing the FastAPI web dashboard.
+* **Port 8001 (HTTP)**: For accessing the DependencySec FastAPI web dashboard (port 8000 remains reserved for existing app).
 
-Run the following Azure CLI command to open port 8000:
+Run the following Azure CLI command to open port 8001:
 ```bash
 az vm open-port \
   --resource-group rg-devsecops \
   --name vm-devsecops-analyzer \
-  --port 8000 \
-  --priority 1010
+  --port 8001 \
+  --priority 1020
 ```
 
 ### 1.3 One-Time Initialization on Azure VM
@@ -105,9 +105,9 @@ Navigate to **Manage Jenkins > Credentials > System > Global credentials > Add C
 | Credential ID | Kind | Value / Details |
 |---|---|---|
 | `azure-vm-ssh-key` | **SSH Username with private key** | Username: `azureuser`<br>Private Key: Enter directly or upload the `.pem`/private key used to access your Azure VM. |
-| `azure-acr-credentials` | **Username with password** | Username: ACR Admin username<br>Password: ACR Password |
-| `ACR_REGISTRY_HOST` | **Secret text** | Value: `<YOUR_ACR_NAME>.azurecr.io` (e.g. `myacr.azurecr.io`) |
-| `AZURE_VM_IP` | **Secret text** | Value: Public IP address of your Azure VM |
+| `ACR_CREDENTIALS` | **Username with password** | Username: ACR Admin username (`acrdevsecopshs`)<br>Password: ACR Admin Password |
+| `ACR_REGISTRY_HOST` | **Secret text** | Value: `acrdevsecopshs.azurecr.io` |
+| `AZURE_VM_IP` | **Secret text** | Value: `20.193.140.76` (Azure VM Public IP) |
 
 ---
 
